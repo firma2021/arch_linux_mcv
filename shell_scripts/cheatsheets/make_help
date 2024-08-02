@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+print_make_usage()
+{
+  cat << EOF
+Make工具自动完成编译工作，仅重新编译修改的源文件。通过Makefile文件描述编译、链接规则。
+
+基本规则:
+target : dependencies
+    command
+
+- "command"前必须有tab字符。
+- "dependencies"更新时，"command"执行生成"target"。
+
+示例Makefile:
+.PHONY: clean
+OBJECTS=main.o add.o sub.o
+main: \$(OBJECTS)
+\tgcc \$^ -o \$@
+main.o: main.c
+\tgcc -c \$< -o \$@
+add.o: add.c add.h
+\tgcc -c \$< -o \$@
+sub.o: sub.c sub.h
+\tgcc -c \$< -o \$@
+clean:
+\trm -f main \$(OBJECTS)
+
+变量和特殊符号:
+- \$@ 目标文件名
+- \$< 第一个依赖文件名
+- \$^ 所有依赖文件列表
+
+多个可执行文件:
+.PHONY: all clean
+CC=gcc
+CFLAGS=-Wall -g
+BIN=main1 main2
+all: \$(BIN)
+%.o:%.c
+\t\$(CC) \$(CFLAGS) -c \$< -o \$@
+main1: main1.o
+\t\$(CC) \$(CFLAGS) \$^ -o \$@
+main2: main2.o
+\t\$(CC) \$(CFLAGS) \$^ -o \$@
+clean:
+\trm -f *.o \$(BIN)
+
+内嵌函数:
+- \$(wildcard PATTERN) 获取特定文件
+- \$(patsubst PATTERN, REPLACEMENT, TEXT) 模式替换
+- \$(shell COMMAND) 执行shell命令
+
+多级目录编译示例:
+CC=gcc
+CFLAGS=-Wall -g
+BIN=main
+ROOTSRC=\$(wildcard *.c)
+ROOTOBJ=\$(ROOTSRC:%.c=%.o)
+SUBDIR=\$(shell ls -d */)
+SUBSRC=\$(shell find \$(SUBDIR) -name '*.c')
+SUBOBJ=\$(SUBSRC:%.c=%.o)
+\$(BIN):\$(ROOTOBJ) \$(SUBOBJ)
+\t\$(CC) \$(CFLAGS) \$(ROOTOBJ) \$(SUBOBJ) -o \$(BIN)
+.c.o:
+\t\$(CC) \$(CFLAGS) -c \$< -o \$@
+clean:
+\trm -f \$(BIN) \$(ROOTOBJ) \$(SUBOBJ)
+
+EOF
+}
+
+print_make_usage

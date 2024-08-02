@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+
+echo -e '\033[38;2;102;153;204;1m'
+
+cat << 'EOF'
+
+bash的键绑定默认为emacs风格，如下所示：
+(您可以使用 set -o vi切换键绑定为vi风格)
+
+ctrl-a 将光标移动到行首
+ctrl-e 将光标移动到行尾
+ctrl-u 清空当前行
+ctrl-k 删除光标后的所有字符
+ctrl-h 删除光标前的一个字符
+ctrl-d 删除光标后的一个字符
+
+ctrl-w 删除前一个单词
+alt-d 删除下一个单词
+
+ctrl-y 撤销一步操作
+
+ctrl-b 将光标向前移动一个字符(back)
+ctrl-f 将光标向后移动一个字符(forward)
+alt-b 将光标向前移动一个单词(back)
+alt-f 将光标向后移动一个单词(forward)
+
+alt-. 上一条命令的最后一个参数，相当于!$
+EOF
+
+echo -e '\033[0m'

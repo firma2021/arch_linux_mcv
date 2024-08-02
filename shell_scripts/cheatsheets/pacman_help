@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+echo -e '\033[38;2;102;153;204;1m'
+
+cat << EOF
+ sudo pacman -Syu     同步包数据库，更新包 (sync upgrade)
+ sudo pacman -Syyu    刷新包数据库，同步包数据库，更新包 (sync refresh upgrade)
+ sudo pacman -Rsn     移除包和它的依赖、它的配置文件 (REMOVE OPTIONS，--recursive， --nosave)
+ sudo pacman -U       从本地文件安装包 (upgrade)
+ pacman -Ss           在包数据库中搜索包 (synchronize search)
+ pacman -Si           显示包数据库中，包的信息 (query information)
+ sudo pacman -Sc      删除缓存的软件包和未用的同步仓库，会保留元数据 (synchronize clean)
+ sudo pacman -Scc     删除缓存的软件包和未用的同步仓库 (synchronize clean cache)
+ pacman -Qi           显示本地包的信息 (query installed)
+ pacman -Qe           查询用户主动安装的包 (query explicit)；加上q参数后，不显示包的版本等信息
+ pacman -Q            查找本地包 (只显示版本)
+ pacman -Qs           查找本地包 (query search)(显示详细信息)
+ pacman -Qn           查找从官方仓库安装的包
+ pacman -Qm           查找从aur安装的包 (query foreign)
+ sudo pacman -Qdt     列出所有孤儿包 (query dangling topologies)
+ sudo pacman -Rs \$(pacman -Qtdq)  删除所有孤儿包
+ pacman -Ql           显示已安装包的文件列表 (query list)
+ pacman -Qo           查询指定文件或目录属于哪个已安装包 (query own)
+ pacman -F cmd_name   查询某个命令属于哪个包
+ yay -Ps              显示统计信息
+ yay -Yc              删除不需要的依赖
+ /etc/pacman.conf     pacman配置文件目录
+ /var/cache/pacman/pkg/  pacman缓存目录
+ /var/lib/pacman/     pacman数据库目录
+EOF
+
+echo -e '\033[0m'
