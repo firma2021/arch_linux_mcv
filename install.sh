@@ -154,7 +154,7 @@ function init_git
     git config --global user.name "$USER_NAME"
   fi
 
-  if ! current_user_email; then
+  if ! git config --global user.email; then
     read -r -p "请输入您的 Git 邮箱地址: " USER_EMAIL
     git config --global user.email "$USER_EMAIL"
   fi
