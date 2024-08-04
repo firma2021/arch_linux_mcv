@@ -48,11 +48,11 @@ function install_zsh
     sudo pacman -S --noconfirm zsh
   fi
 
-  if pacman -Q zsh-autosuggestions zsh-fast-syntax-highlighting zsh-completions zsh-history-substring-search; then
+  if pacman -Q zsh-autosuggestions zsh-fast-syntax-highlighting zsh-completions; then
     echo -e "zsh插件已安装..."
   else
     echo -e "安装zsh插件..."
-    sudo pacman -S --noconfirm zsh-autosuggestions zsh-completions zsh-history-substring-search
+    sudo pacman -S --noconfirm zsh-autosuggestions zsh-fast-syntax-highlighting zsh-completions
     yay -S --noconfirm zsh-fast-syntax-highlighting
   fi
 
@@ -166,6 +166,9 @@ function init_git
     blue_print "将git的默认分支名从master改为main..."
     git config --global init.defaultBranch main
   fi
+
+  blue_print '设置git日志格式'
+  git config --global alias.lg "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%ci %cr) %C(bold blue)<%an>%Creset'"
 
   blue_print "您当前的git配置为: "
   git config --list
