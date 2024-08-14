@@ -3,8 +3,9 @@
 echo -e '\033[38;2;102;153;204;1m'
 
 cat << EOF
-在指定目录树下递归查找文件或目录。基本格式:
+find在指定目录树下递归查找文件或目录。
 
+基本格式:
 find [路径...] [匹配条件...] [动作表达式]
 
 常用参数:
@@ -45,16 +46,20 @@ find . -type f -name '*.jpg' -mtime -7
 find . -type d -empty -delete
 
 查找当前目录及子目录下所有 '.sh' 文件并对每个文件执行 'chmod +x':
-find . -type f -name '*.sh' -print -exec chmod +x {} \\;
+find . -type f -name '*.sh' -print -exec chmod +x {} \;
+其中{} 是文件名的占位符，将被实际找到的文件名所替换;反斜杠用于转义分号, 分号是命令的终止符
 
 查找当前目录及子目录下所有 备份文件, 并删除它们:
-find . -name '*.bak' -type f -print -exec rm {} \\;
+find . -name '*.bak' -type f -print -exec rm {} \;
 
 递归地统计etc目录下含'telnet'文本的文件数目:
-find /etc -type f -exec grep -il 'telnet' {} \\; | wc -l
+find /etc -type f -exec grep -il 'telnet' {} \; | wc -l
 
 递归地打印当前目录下文件名以A(a)开头或结束的文件:
-find . \\( -name '[Aa]*' -o -name '*[Aa]' \\)
+find . \\( -name '[Aa]*' -o -name '*[Aa]' \)
+
+删除当前目录下所有非PDF文件:
+find . -type f ! -name '*.pdf' -exec rm -v {} \;
 EOF
 
 echo -e '\033[0m'

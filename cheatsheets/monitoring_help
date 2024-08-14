@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
-cat << 'EOF'
-# Linux 系统监控命令速查表
+echo -e '\033[38;2;102;153;204;1m'
 
+cat << 'EOF'
 ## 内存监控
 pmap: 显示进程的内存映射
 vmstat: 报告虚拟内存统计信息
@@ -26,5 +26,9 @@ curl ipinfo.io: 获取公共 IP 地址和位置信息
 df: 报告文件系统磁盘空间使用情况
 du: 估算文件空间使用情况
 
+dmidecode: 获取系统硬件信息
+
 注意：运行大多数这些命令时需要使用 sudo 以获取完整信息。
 EOF
+
+echo -e '\033[0m'

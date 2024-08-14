@@ -12,14 +12,19 @@ snow_flakes_y=()
 
 readonly -a snow_flakes=("\u2743" "\u2744" "\u2745" "\u2746" "\u2747" "\u2748" "\u2729")
 
-generate_random_true_color()
+# generate_random_true_color()
+# {
+
+#   local R=$((RANDOM % 256)) # 生成随机的 RGB 值
+#   local G=$((RANDOM % 256))
+#   local B=$((RANDOM % 256))
+
+#   echo -n -e "\e[38;2;${R};${G};${B}m" # 输出真彩色的 ANSI escape code
+# }
+
+generate_random_color()
 {
-
-  local R=$((RANDOM % 256)) # 生成随机的 RGB 值
-  local G=$((RANDOM % 256))
-  local B=$((RANDOM % 256))
-
-  echo -n -e "\e[38;2;${R};${G};${B}m" # 输出真彩色的 ANSI escape code
+  echo -n -e "\e[1;3$((RANDOM % 7 + 1))m"
 }
 
 readonly snowflake_per_line=2
@@ -39,7 +44,7 @@ draw_snowflakes()
 
   for ((i = 0; i < ${#snow_flakes_x[@]}; ++i)); do
     tput cup "${snow_flakes_y[$i]}" "${snow_flakes_x[$i]}"
-    generate_random_true_color
+    generate_random_color
     echo -n -e "${snow_flakes[$((RANDOM % ${#snow_flakes[@]}))]}"
 
     offset=$((RANDOM % 2))
@@ -70,7 +75,7 @@ check_output_redirection()
   if ! [ -t 1 ]; then
     output_target=$(readlink -f /proc/self/fd/1)
 
-    generate_random_true_color >&2
+    generate_random_color >&2
     echo "主人，我的标准输出被重定向到 $output_target 啦 ✘>﹏<✘" >&2 # 输出到标准错误。>&2之间不能有空格
 
     exit 1
@@ -83,7 +88,7 @@ get_and_check_terminal_size()
   height=$(tput lines)
 
   if ((width < 6 || height < 6)); then
-    generate_random_true_color
+    generate_random_color
     echo '主人, 终端放不下人家呢 ✘>﹏<✘'
     exit 1
   fi
@@ -93,7 +98,7 @@ handle_terminal_resize()
 {
   clear
 
-  generate_random_true_color
+  generate_random_color
   echo '不要拽人家啦 ✘>﹏<✘'
 
   sleep 2s
@@ -107,7 +112,7 @@ cleanup()
 {
   clear
 
-  generate_random_true_color
+  generate_random_color
 
   if ((RANDOM % 2)); then
     echo -e "愿我们永远纯洁如雪. ✘╹◡╹✘"

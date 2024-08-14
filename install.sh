@@ -3,138 +3,184 @@ set -o nounset
 set -o pipefail
 
 # ANSI 颜色代码，24位真彩色,38表示前景色，2表示真彩色，中间的3位是RGB, 最后的1表示粗体
-orange="\033[38;2;255;102;0;1m"
-red='\033[38;2;255;0;0;1m'
-purple='033[38;2;63;13;164;1m'
+orange="\033[38;2;255;102;0;1m" # 用于接收用户输入时的提示信息
+red='\033[38;2;255;0;0;1m'      # 用于错误信息
+purple='\033[38;2;63;13;164;1m' # 用于普通信息
 reset="\033[0m"
 
-function make_a_choice
+function init_git
 {
-  echo -e "$purple$1" # 输出提示信息
+  if pacman -Q git; then
+    echo -e "${purple}已安装git !"
+  else
+    echo -e "${purple}安装git..."
+    sudo pacman -S --noconfirm git
+  fi
 
-  local timeout=10
+  if ! git config user.name; then
+    echo -e "${orange}请输入您的 Git 用户名称: "
+    read -r USER_NAME # -r将\视为普通字符
+    git config --global user.name "$USER_NAME"
+  fi
 
-  echo -e "$orange"
+  if ! git config --global user.email; then
+    echo -e "${orange}请输入您的 Git 邮箱地址: "
+    read -r USER_EMAIL
+    git config --global user.email "$USER_EMAIL"
+  fi
 
-  for ((i = timeout; i > 0; --i)); do
+  branch_name=$(git config --global --get init.defaultBranch)
+  echo -e "${purple}您当前的全局默认分支名为$branch_name"
 
-    printf "\r按任意键确认 (%d seconds left) " $i
+  if [[ -z $branch_name || $branch_name == 'master' ]]; then
+    echo -e "${purple}将git的默认分支名从master改为main..."
+    git config --global init.defaultBranch main
+  fi
 
-    if read -r -t 1 -n 1; then
-      echo ""
-      return 0
-    fi
-  done
+  echo -e "${purple}设置git日志格式"
+  git config --global alias.lg "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%ci %cr) %C(bold blue)<%an>%Creset'"
+  git config --global alias.br "branch --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(contents:subject) %(color:green)(%(committerdate:relative)) [%(authorname)]' --sort=-committerdate"
+  git config --global alias.pu "push origin HEAD"
+  git config --global alias.save "add -A && git commit -m 'chore: savepoint'"
+  git config --global alias.undo "reset HEAD~1 --mixed"
 
-  echo -e "$reset"
+  echo -e "${purple}您当前的git配置为: "
+  git config --list
 
-  return 1
+  echo -e "${orange}按下任意键以继续..."
+  read -n 1 -s -r
 }
 
-if wait_for_input; then
-  echo "Input received"
-else
-  echo "No input received within the timeout"
-fi
+function init_pacman
+{
+  if ! pacman -Q reflector; then
+    echo -e "${purple}安装reflector..."
+    sudo pacman -S --noconfirm reflector
+  fi
+
+  echo -e "${purple}添加国内源:"
+  sudo reflector --verbose --country 'China' --latest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
+
+  if pacman -Q paru; then
+    echo -e "${purple}已安装paru!"
+  else
+    echo -e "${purple} 安装AUR包管理器paru..."
+    sudo pacman -S --needed base-devel
+    git clone https://aur.archlinux.org/paru.git
+    cd paru || echo "${red}无法进入 paru目录"
+    makepkg -si
+  fi
+
+  echo -e "${purple}请您手动将 Color、ILoveCandy、VerbosePkgLists 添加到/etc/pacman.conf 中的[options] 下"
+  echo -e "${purple}请您手动将 BottomUp 添加到/etc/paru.conf 中的[options] 下"
+
+  echo -e "${orange}按下任意键以继续..."
+  read -n 1 -s -r
+}
 
 function install_zsh
 {
-  echo -e "$orange"
-
   if pacman -Q zsh; then
-    echo -e "已安装zsh..."
+    echo -e "${purple}已安装zsh..."
   else
-    echo -e "安装zsh..."
+    echo -e "${purple}安装zsh..."
     sudo pacman -S --noconfirm zsh
   fi
 
+  echo -e "${purple}您当前使用的shell为 $SHELL"
+
+  if [[ $(basename "$SHELL") != 'zsh' ]]; then
+    echo -e "${purple}将 $USER 使用的shell切换为zsh..."
+    chsh -s "$(which zsh)"
+    echo -e "将 root 使用的shell切换为zsh..."
+    sudo chsh -s "$(which zsh)" root
+  fi
+
   if pacman -Q zsh-autosuggestions zsh-fast-syntax-highlighting zsh-completions; then
-    echo -e "zsh插件已安装..."
+    echo -e "${purple}zsh插件已安装..."
   else
-    echo -e "安装zsh插件..."
-    sudo pacman -S --noconfirm zsh-autosuggestions zsh-fast-syntax-highlighting zsh-completions
-    yay -S --noconfirm zsh-fast-syntax-highlighting
+    echo -e "${purple}安装zsh插件..."
+    sudo pacman -S --noconfirm zsh-autosuggestions zsh-completions
+    paru -S --noconfirm zsh-fast-syntax-highlighting
   fi
 
   echo -e "${purple}" "已安装插件: "
   ls /usr/share/zsh/plugins
 
-  echo -e "您当前使用的shell为 $SHELL"
-
-  if [[ $(basename "$SHELL") != 'zsh' ]]; then
-    echo -e "${orange}将 $USER 使用的shell切换为zsh..."
-    echo -e "将 root 使用的shell切换为zsh..."
-    chsh -s "$(which zsh)"
-    sudo chsh -s "$(which zsh)" root
-  fi
-  echo -e "${purple}您当前使用的shell为 $SHELL"
+  echo -e "${orange}按下任意键以继续..."
+  read -n 1 -s -r
 
   if [ -f "$HOME/.zshrc" ]; then
-    if make_a_choice '已存在旧的.zshrc配置文件, 是否备份旧配置?'; then
+    echo -e "${purple}已存在旧的.zshrc配置文件。您想要备份它还是直接覆盖 ?"
+    echo -e "1) 备份后覆盖"
+    echo -e "2) 直接覆盖"
+    echo -e '请输入您的选择 (1/2): '
+    read -r choice
+
+    if [ "$choice" -eq 1 ]; then
+      echo -e "${purple}备份旧配置..."
       backup_file_name=".zshrc_$(date +'%Y-%m-%d-%H-%M-%S')"
-      echo -e "${orange}将.zshrc 文件备份为 $HOME/$backup_file_name..."
-      cp ~/.zshrc "$HOME/$backup_file_name"
-
-      backup_file_name="zsh_$(date +'%Y-%m-%d-%H-%M-%S')"
-      echo -e "将/usr/share/zsh/zsh_scripts备份为 /usr/share/zsh_scripts/$backup_file_name"
-      sudo cp -r -v /usr/share/zsh/zsh_scripts "/usr/share/zsh_scripts/$backup_file_name"
+      mv ~/.zshrc "$HOME/$backup_file_name"
+      echo -e "${purple}将.zshrc 文件备份为 $HOME/$backup_file_name..."
+      cp -pv ./zsh_config/.zshrc ~/.zshrc
+    elif [ "$choice" -eq 2 ]; then
+      echo -e "${purple}直接覆盖.zshrc配置文件..."
+      cp -pv ./zsh_config/.zshrc ~/.zshrc
+    else
+      echo -e "${red}无效的选择, 请输入1或2."
     fi
-    rm -rf ~/.zshrc
-    sudo rm -rf /usr/share/zsh/zsh_scripts
+  else
+    cp -pv ./zsh_config/.zshrc ~/.zshrc
   fi
 
-  echo -e "${orange}复制zsh配置文件..."
-  cp -r -v ./zsh_config/.zshrc ~/.zshrc
-  if [ ! -d /usr/share/zsh ]; then
-    sudo mkdir /usr/share/zsh
+  if [ -d "/usr/share/zsh/zsh_scripts" ]; then
+    echo -e "${purple}检测到旧的zsh_scripts目录，选择以下操作："
+    echo "1. 合并"
+    echo "2. 删除旧目录"
+    echo "3. 备份旧目录"
+    echo "请输入您的选择 (1/2/3): "
+    read -r choice
+
+    case $choice in
+      1)
+        echo -e "${purple}合并目录..."
+        sudo cp -rpiv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
+        ;;
+      2)
+        echo -e "${purple}删除旧目录..."
+        sudo rm -rf /usr/share/zsh/zsh_scripts
+        sudo cp -rpv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
+        ;;
+      3)
+        backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
+        echo -e "${purple}备份旧目录为 /usr/share/zsh/zsh_scripts_$backup_file_name"
+        sudo mv /usr/share/zsh/zsh_scripts "/usr/share/zsh/zsh_scripts_$backup_file_name"
+        sudo cp -rpv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
+        ;;
+      *)
+        echo -e "${purple}无效的选择，退出脚本。"
+        exit 1
+        ;;
+    esac
+  else
+    sudo cp -rpv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
   fi
-  sudo cp -r -v ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
 }
 
 function install_cli_tools
 {
   local python_packages=('python' 'python-pip')
-  local cpp_packages=('gcc' 'clang-git' 'gdb' 'make' 'cmake' 'ninja' 'boost')
-  local dev_packages=('man-db' 'man-pages')
-  local cli_tools=('bat' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'lf' 'choose' 'sd' 'zoxide' 'fastfetch')
+  local cpp_packages=('gcc' 'clang' 'gdb' 'make' 'cmake' 'ninja' 'boost')
+  local dev_packages=('man-db' 'man-pages' 'man-pages-zh_cn')
+  local cli_tools=('bat' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'zoxide')
 
-  sudo pacman -S "${cli_tools[@]}"
-  sudo pacman -S "${dev_packages[@]}"
-  sudo pacman -S "${cpp_packages[@]}"
-  sudo pacman -S "${python_packages[@]}"
+  local fetch=('fastfetch' 'cpufetch')
+  paru -S "${cli_tools[@]}"
+  paru -S "${dev_packages[@]}"
+  paru -S "${cpp_packages[@]}"
+  paru -S "${python_packages[@]}"
+  paru -S "${fetch[@]}"
 
-  function setup_bat_theme
-  {
-    local bat_dir="$HOME/bat"
-
-    # Check if bat directory exists
-    if [ -d "$bat_dir" ]; then
-      echo "Updating existing bat repository..."
-      cd "$bat_dir"
-      git pull
-    else
-      echo "Cloning bat repository..."
-      git clone https://github.com/catppuccin/bat.git "$bat_dir"
-    fi
-
-    # Create the themes directory
-    mkdir -p "$(bat --config-dir)/themes"
-
-    # Copy the theme files
-    cp *.tmTheme "$(bat --config-dir)/themes"
-
-    # Build the bat cache
-    bat cache --build
-
-    # Export the BAT_THEME environmental variable
-    echo 'export BAT_THEME="Catppuccin-mocha"' >> ~/.bashrc
-    echo 'export BAT_THEME="Catppuccin-mocha"' >> ~/.zshrc
-
-    # Reload the shell configuration
-    source ~/.bashrc
-    source ~/.zshrc
-  }
-  setup_bat_theme
   config_dir=$(bat --config-dir)
   if [ ! -d "$config_dir/themes" ]; then
     git clone https://github.com/catppuccin/bat.git "$config_dir/themes"
@@ -143,146 +189,151 @@ function install_cli_tools
     echo '--theme="Catppuccin Latte"' >> "$config_dir/config"
   fi
 
-  make_a_choice "执行pacman -Qe命令, 查看您安装的包"
+  echo -e "${purple}"
+  echo "执行pacman -Qe命令, 查看您安装的包"
+  echo -e "${orange}"
+  read -r -p "按回车键继续..."
 }
 
-function init_git
+function install_fonts
 {
 
-  if ! git config user.name; then
-    read -r -p "请输入您的 Git 用户名称: " USER_NAME # -r将\视为普通字符
-    git config --global user.name "$USER_NAME"
-  fi
+  local fonts=('otf-monaspace' 'otf-monaspace-nerd' 'ttf-lxgw-wenkai')
 
-  if ! git config --global user.email; then
-    read -r -p "请输入您的 Git 邮箱地址: " USER_EMAIL
-    git config --global user.email "$USER_EMAIL"
-  fi
+  paru -S "${fonts[@]}"
 
-  branch_name=$(git config --global --get init.defaultBranch)
-  blue_print "您当前的全局默认分支名为$branch_name"
-
-  if [[ $branch_name == 'master' ]]; then
-    blue_print "将git的默认分支名从master改为main..."
-    git config --global init.defaultBranch main
-  fi
-
-  blue_print '设置git日志格式'
-  git config --global alias.lg "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%ci %cr) %C(bold blue)<%an>%Creset'"
-
-  blue_print "您当前的git配置为: "
-  git config --list
-
-  read -p "Press any key to continue... " -n 1 -s -r
-  echo
+  echo -e "${purple}"
+  echo "执行pacman -Qe命令, 查看您安装的包"
+  echo -e "${orange}"
+  read -r -p "按回车键继续..."
 }
 
-function init_install
+function install_input_method
 {
-  local mirror="[archlinuxcn]"
-  local server='Server = https://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/$arch'
-  local pacman_conf="/etc/pacman.conf"
 
-  if grep -Fxq "$mirror" "$pacman_conf"; then # 检查是否已经存在相同的镜像配置
-    echo -e "pacman.conf中已存在待添加的镜像"
-    return
-  else
-    echo -e "将 $mirror 添加到$pacman_conf ..."
-  fi
+  local input_method=('fcitx5-im' 'fcitx5-chinese-addons' 'fcitx5-pinyin-moegirl' 'fcitx5-pinyin-zhwiki' 'fcitx5-material-color')
 
-  echo -e "\n$mirror\n$server" | sudo tee -a "$pacman_conf" > /dev/null # tee -a :将标准输入的内容追加到一个文件中
-  echo -e "镜像添加完成"
+  paru -S "${input_method[@]}"
 
-  red_echo "软件包维护者使用私钥对软件包进行签名，你需要下载公钥来验证软件包的来源"
-  echo -e "删除旧的密钥环境..."
-  sudo rm -rf /etc/pacman.d/gnupg
-  sync
-  echo -e "初始化pacman密钥环境..."
-  sudo pacman-key --init
-  sync
-  echo -e "更新pacman密钥环境..."
-  sudo pacman-key --populate archlinux
-  sync
-  echo -e "安装ArchLinux密钥环..."
-  sudo pacman -Sy --noconfirm archlinux-keyring
-  sync
-  echo -e "安装ArchLinuxCN密钥环..."
-  sudo pacman -Sy --noconfirm archlinuxcn-keyring
-  sync
-  echo -e "更新系统中所有软件包..."
-  sudo pacman -Syyu --noconfirm --disable-download-timeout
-
-  echo -e "将git的默认分支名从master改为main..."
-  git config --global init.defaultBranch main
-
-  if pacman -Q git; then
-    echo -e "已安装git..."
-  else
-    echo -e "安装git..."
-    sudo pacman -S --noconfirm zsh
-  fi
-
-  echo -e "${orange} 安装包管理器paru..."
-  sudo pacman -S --needed base-devel
-  git clone https://aur.archlinux.org/paru.git
-  cd paru
-  makepkg -si
-
-  pacman_conf='/etc/pacman.conf'
-
-  if grep -q "^Color$" "$pacman_conf"; then
-    :
-  elif grep -q "^#Color$" "$pacman_conf"; then
-    sudo sed -i 's/^#Color$/Color/' "$pacman_conf"
-  else
-    echo "Color" >> "$pacman_conf"
-  fi
-
-  if ! grep -q '\[archlinuxcn\]' $pacman_conf; then
-    sudo sed -i '$a\[archlinuxcn\]' $pacman_conf
-    sudo sed -i '$aServer = https://mirrors.tuna.tsinghua.edu.cn/archlinuxcn/$arch' $pacman_conf
-
-    sudo pacman-key --lsign-key "farseerfc@archlinux.org"
-    sudo pacman -Sy archlinuxcn-keyring --noconfirm
-  fi
-
-  if pacman -Q paru; then
-    blue_print "已安装paru..."
-  else
-    blue_print "安装paru..."
-    sudo pacman -S --noconfirm paru
-  fi
-
-  paru_conf='/etc/paru.conf'
-  if grep -q "^BottomUp$" "$paru_conf"; then
-    :
-  elif grep -q "^#BottomUp$" "$paru_conf"; then
-    sudo sed -i 's/^#BottomUp$/BottomUp/' "$paru_conf"
-  else
-    :
-  fi
-
-  # grep -q: 不输出匹配行，只返回退出状态码
-  # grep -c: count
-  # sed -i:直接操作源文件。 $a:在文件末尾追加
-  # \[：转义[
+  echo -e "${purple}"
+  echo "执行pacman -Qe命令, 查看您安装的包"
+  echo -e "${orange}"
+  read -r -p "按回车键继续..."
 }
 
 function install_shell_scripts
 {
-  for file in ./shell_scripts/*.sh; do
-    sudo cp -v -i "$file" /usr/local/bin/
-  done
+  if [ -d "/usr/share/shell_scripts" ]; then
+    echo -e "${purple}检测到旧的shell脚本目录，选择以下操作："
+    echo "1. 合并"
+    echo "2. 删除旧目录"
+    echo "3. 备份旧目录"
+    echo "请输入您的选择 (1/2/3): "
+    read -r choice
+
+    case $choice in
+      1)
+        echo -e "${purple}合并目录..."
+        sudo cp -rpi ./shell_scripts /usr/share/shell_scripts
+        ;;
+      2)
+        echo -e "${purple}删除旧目录..."
+        sudo rm -rf /usr/share/shell_scripts
+        sudo cp -rp ./shell_scripts /usr/share/shell_scripts
+        ;;
+      3)
+        backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
+        echo -e "${purple}备份旧目录为 /usr/share/zsh/zsh_scripts_$backup_file_name"
+        sudo mv /usr/share/shell_scripts "/usr/share/shell_scripts_$backup_file_name"
+        sudo cp -rp ./shell_scripts /usr/share/shell_scripts
+        ;;
+      *)
+        echo -e "${purple}无效的选择，退出脚本。"
+        exit 1
+        ;;
+    esac
+  else
+    sudo cp -rpv ./shell_scripts /usr/share/shell_scripts
+  fi
+
+  if [ -d "/usr/share/cheatsheets" ]; then
+    echo -e "${purple}检测到旧的cheatsheets目录，选择以下操作："
+    echo "1. 合并"
+    echo "2. 删除旧目录"
+    echo "3. 备份旧目录"
+    echo "请输入您的选择 (1/2/3): "
+    read -r choice
+
+    case $choice in
+      1)
+        echo -e "${purple}合并目录..."
+        sudo cp -rpi ./cheatsheets /usr/share/cheatsheets
+        ;;
+      2)
+        echo -e "${purple}删除旧目录..."
+        sudo rm -rf /usr/share/cheatsheets
+        sudo cp -rp ./cheatsheets /usr/share/cheatsheets
+        ;;
+      3)
+        backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
+        echo -e "${purple}备份旧目录为 /usr/share/cheatsheets_$backup_file_name"
+        sudo mv /usr/share/cheatsheets "/usr/share/cheatsheets_$backup_file_name"
+        sudo cp -rp ./cheatsheets /usr/share/cheatsheets
+        ;;
+      *)
+        echo -e "${purple}无效的选择，退出脚本。"
+        exit 1
+        ;;
+    esac
+  else
+    sudo cp -rpv ./cheatsheets /usr/share/cheatsheets
+  fi
+
+  bashrc="$HOME/.bashrc"
+  zshrc="$HOME/.zshrc"
+
+  if ! grep -q "export PATH=\"$PATH:/usr/share/shell_scripts\"" "$bashrc"; then
+    echo 'export PATH="$PATH:/usr/share/shell_scripts"' >> "$bashrc"
+  fi
+  if ! grep -q "export PATH=\"$PATH:/usr/share/cheatsheets\"" "$bashrc"; then
+    echo 'export PATH="$PATH:/usr/share/cheatsheets"' >> "$bashrc"
+  fi
+
+  if ! grep -q "export PATH=\"$PATH:/usr/share/shell_scripts\"" "$zshrc"; then
+    echo 'export PATH="$PATH:/usr/share/shell_scripts"' >> "$zshrc"
+  fi
+  if ! grep -q "export PATH=\"$PATH:/usr/share/cheatsheets\"" "$zshrc"; then
+    echo 'export PATH="$PATH:/usr/share/cheatsheets"' >> "$zshrc"
+  fi
 }
 
-blue_print '将RTC时间（Real Time Clock time，即BIOS时间）与系统时间同步'
-timedatectl set-local-rtc 1
-timedatectl status
+while true; do
+  echo -e "${purple}请选择要执行的功能:"
+  echo "1) 安装并初始化git"
+  echo "2) 安装并初始化包管理器"
+  echo "3) 安装zsh, zsh插件, 实用zsh脚本"
+  echo "4) 安装开发环境和命令行工具"
+  echo "5) 安装实用 shell 脚本"
+  echo "6) 安装字体"
+  echo "7) 安装输入法"
+  echo "8) 退出"
+  echo -e "${reset}"
 
-echo '添加国内源:'
-sudo reflector --verbose --country 'China' --latest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
-
-#  echo "请您在 konsole设置 > 配置konsole > 配置方案 > 新建 > 外观 中，应用您刚才选择的主题"
-#   echo "重启konsole后主题才会生效"
-#   read -p "输入任意键以继续..." -n 1
-plugin_clone 'zsh-users/zsh-syntax-highlighting' 'zsh-users/zsh-autosuggestions' 'zsh-users/zsh-history-substring-search' 'zsh-users/zsh-completions'
+  read -r -p "请输入选项 (1-6): " choice
+  case $choice in
+    1) init_git ;;
+    2) init_pacman ;;
+    3) install_zsh ;;
+    4) install_cli_tools ;;
+    5) install_shell_scripts ;;
+    6) install_fonts ;;
+    7) install_input_method ;;
+    8)
+      echo -e "${purple}退出程序"
+      exit 0
+      ;;
+    *) echo -e "${purple}无效选项，请重新选择" ;;
+  esac
+  echo -e "${orange}"
+  read -r -p "按回车键继续..."
+done

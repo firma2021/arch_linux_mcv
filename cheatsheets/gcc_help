@@ -45,7 +45,6 @@ g++ -D STR1='"hello, "' -D STR2='"world!"' test.cpp -o test
 -Wpedantic 有助于编写更加符合标准的、可移植的代码
 -Wparentheses 警告可疑的括号使用
 
-
 -Walloc-zero: malloc(0)、realloc(x, 0)
 -Wcast-qual 警告const属性丢失
 -Wconversion 警告可能更改值的隐式类型转换
@@ -66,7 +65,6 @@ g++ -D STR1='"hello, "' -D STR2='"world!"' test.cpp -o test
 -Wundef 在 #if 指令中计算未定义的标识符
 -Wunused-macros
 -Wwrite-strings  char *x = "foobar" 因为x未显式声明为 const, 触发警告
-
 
 一个典型的g++命令行：g++ -Wall -std=c++20 source1.cpp source2.cpp -o program
 

@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 
-echo -e '\033[38;2;255;255;0;1m'
+echo -e '\033[38;2;102;153;204;1m'
 
 cat << 'EOF'
-
 alt + z toggle wrap line
 ctrl + shift + l 重命名函数或变量
 ctrl + d 多次按，增量选择要重命名的函数或变量

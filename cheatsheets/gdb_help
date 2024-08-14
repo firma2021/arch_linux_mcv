@@ -3,7 +3,7 @@
 echo -e '\033[38;2;102;153;204;1m'
 
 cat << EOF
-gdb（GNU symbolic debugger）是通过linux下ptrace系统调用实现的调试器，支持远程调试。
+gdb (GNU symbolic debugger) 是通过linux下ptrace系统调用实现的调试器，支持远程调试。
 被调试的可执行文件必须加上-g选项编译，否则会提示No debugging symbols found in executable file
 
 调试可执行文件: gdb exe_file
@@ -83,9 +83,6 @@ gdb（GNU symbolic debugger）是通过linux下ptrace系统调用实现的调试
 | run/r arg1 arg2 ...    | 运行程序，会执行到第一个断点处。可以传递程序的命令行参数    |
 | start arg1 arg2 ...    | 准备执行main函数。可以传递程序的命令行参数                  |
 | quit/q                 | 退出GDB                                                     |
-
-
-+------------------+------------------------------------------------+
 EOF
 
 echo -e '\033[0m'

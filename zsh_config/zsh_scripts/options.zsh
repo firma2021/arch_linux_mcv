@@ -13,8 +13,5 @@ HISTFILE="${HOME}/.zsh_history"
 setopt COMPLETE_ALIASES    # zsh 的自动补全系统会尝试补全别名（alias）后面的命令
 setopt interactivecomments # 允许在交互模式下使用注释
 
-setopt WARN_CREATE_GLOBAL
-setopt WARN_NESTED_VAR
-
-autoload -Uz compinit && compinit
-zstyle ':completion:*' menu select
+# autoload -Uz compinit && compinit
+# zstyle ':completion:*' menu select
