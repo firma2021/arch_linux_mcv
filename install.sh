@@ -309,8 +309,6 @@ function install_shell_scripts
 
 function set_chinese_locale
 {
-
-
   locales=("en_US.UTF-8" "zh_CN.UTF-8")
 
   if [ ! -f /etc/locale.gen ]; then
@@ -329,11 +327,12 @@ function set_chinese_locale
 
   sudo locale-gen # Generate locales
 
-  sudo echo "LANG=en_US.UTF-8" > /etc/locale.conf   # Note: It's not recommended to set the global LANG locale to zh_CN.UTF-8 in /etc/locale.conf, as it will cause tofu blocks in TTY without CJK fonts.
+  echo "LANG=en_US.UTF-8" | sudo tee /etc/locale.conf   # Note: It's not recommended to set the global LANG locale to zh_CN.UTF-8 in /etc/locale.conf, as it will cause tofu blocks in TTY without CJK fonts.
 
-  sudo echo "export LC_ALL=zh_CN.UTF-8
+  echo "export LC_ALL=zh_CN.UTF-8
   export LANG=zh_CN.UTF-8
-  export LANGUAGE=zh_CN:en_US" >> /etc/profile
+  export LANGUAGE=zh_CN:en_US" | sudo tee -a /etc/profile # sudo 只对 echo 命令有效，而不对重定向操作符 >> 有效; tee命令用于读取标准输入的数据，并将其内容输出成文件。
+
 
   sudo pacman -S wqy-microhei # Install wqy-microhei font package
 }
