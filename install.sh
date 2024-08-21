@@ -309,7 +309,24 @@ function install_shell_scripts
 
 function set_chinese_locale
 {
-  sed -i '/^#\(en_US.UTF-8\|zh_CN.UTF-8\)/s/^#//' /etc/locale.gen # Open /etc/locale.gen and uncomment the lines
+
+
+  locales=("en_US.UTF-8" "zh_CN.UTF-8")
+
+  if [ ! -f /etc/locale.gen ]; then
+      echo "Error: /etc/locale.gen file not found."
+      return
+  fi
+
+  for locale in "${locales[@]}"; do
+      if grep -q "^#${locale}" /etc/locale.gen; then
+          echo "Uncommenting ${locale}"
+          sudo sed -i "s/^#${locale}/${locale}/" /etc/locale.gen
+      else
+          echo "${locale} is already uncommented or not found"
+      fi
+  done
+
   sudo locale-gen # Generate locales
 
   sudo echo "LANG=en_US.UTF-8" > /etc/locale.conf   # Note: It's not recommended to set the global LANG locale to zh_CN.UTF-8 in /etc/locale.conf, as it will cause tofu blocks in TTY without CJK fonts.
