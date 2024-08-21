@@ -292,19 +292,33 @@ function install_shell_scripts
   bashrc="$HOME/.bashrc"
   zshrc="$HOME/.zshrc"
 
-  if ! grep -q "export PATH=\"$PATH:/usr/share/shell_scripts\"" "$bashrc"; then
+  if ! grep -q 'export PATH="$PATH:/usr/share/shell_scripts"' "$bashrc"; then
     echo 'export PATH="$PATH:/usr/share/shell_scripts"' >> "$bashrc"
   fi
-  if ! grep -q "export PATH=\"$PATH:/usr/share/cheatsheets\"" "$bashrc"; then
+  if ! grep -q 'export PATH="$PATH:/usr/share/cheatsheets"' "$bashrc"; then
     echo 'export PATH="$PATH:/usr/share/cheatsheets"' >> "$bashrc"
   fi
 
-  if ! grep -q "export PATH=\"$PATH:/usr/share/shell_scripts\"" "$zshrc"; then
+  if ! grep -q 'export PATH="$PATH:/usr/share/shell_scripts"' "$zshrc"; then
     echo 'export PATH="$PATH:/usr/share/shell_scripts"' >> "$zshrc"
   fi
-  if ! grep -q "export PATH=\"$PATH:/usr/share/cheatsheets\"" "$zshrc"; then
+  if ! grep -q 'export PATH="$PATH:/usr/share/cheatsheets"' "$zshrc"; then
     echo 'export PATH="$PATH:/usr/share/cheatsheets"' >> "$zshrc"
   fi
+}
+
+function set_chinese_locale
+{
+  sed -i '/^#\(en_US.UTF-8\|zh_CN.UTF-8\)/s/^#//' /etc/locale.gen # Open /etc/locale.gen and uncomment the lines
+  sudo locale-gen # Generate locales
+
+  sudo echo "LANG=en_US.UTF-8" > /etc/locale.conf   # Note: It's not recommended to set the global LANG locale to zh_CN.UTF-8 in /etc/locale.conf, as it will cause tofu blocks in TTY without CJK fonts.
+
+  sudo echo "export LC_ALL=zh_CN.UTF-8
+  export LANG=zh_CN.UTF-8
+  export LANGUAGE=zh_CN:en_US" >> /etc/profile
+
+  sudo pacman -S wqy-microhei # Install wqy-microhei font package
 }
 
 while true; do
@@ -314,9 +328,10 @@ while true; do
   echo "3) 安装zsh, zsh插件, 实用zsh脚本"
   echo "4) 安装开发环境和命令行工具"
   echo "5) 安装实用 shell 脚本"
-  echo "6) 安装字体"
-  echo "7) 安装输入法"
-  echo "8) 退出"
+   echo "6) 设置中文locale"
+  echo "7) 安装字体"
+  echo "8) 安装输入法"
+  echo "9) 退出"
   echo -e "${reset}"
 
   read -r -p "请输入选项 (1-6): " choice
@@ -326,9 +341,10 @@ while true; do
     3) install_zsh ;;
     4) install_cli_tools ;;
     5) install_shell_scripts ;;
-    6) install_fonts ;;
-    7) install_input_method ;;
-    8)
+    6) set_chinese_locale ;;
+    7) install_fonts ;;
+    8) install_input_method ;;
+    9)
       echo -e "${purple}退出程序"
       exit 0
       ;;

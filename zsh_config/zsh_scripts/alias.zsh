@@ -94,6 +94,7 @@ alias sys_maint='function _sys_maint() {
   echo "~/.config/"
   echo "~/.cache/"
   echo "~/.local/share/"
+  echo
   echo "请手动查找并删除无效链接"
 }; _sys_maint'
 
