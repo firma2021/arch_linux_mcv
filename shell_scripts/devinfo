@@ -145,7 +145,7 @@ function get_shell_info
   fi
 
   if shfmt_version=$(shfmt --version 2> /dev/null); then
-    echo_colorful_version 'shfmt' "$shellcheck_version"
+    echo_colorful_version 'shfmt' "$shfmt_version"
   else
     echo_colorful_version 'shfmt' "$none"
   fi
@@ -217,7 +217,7 @@ function get_nodejs_info
   echo ""
 }
 
-if nvidia-smi; then
+if nvidia-smi 2> /dev/null; then
     true
 else
     echo "NVIDIA graphics driver / System Management Interface is not installed."
