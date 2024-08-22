@@ -135,6 +135,24 @@ function get_python_info
   echo ""
 }
 
+function get_shell_info
+{
+  if shellcheck_version=$(shellcheck --version 2> /dev/null); then
+    shellcheck_version=$(echo "$shellcheck_version" | head -n 2 | paste --serial -d ' ')
+    echo_colorful_version 'shellcheck' "$shellcheck_version"
+  else
+    echo_colorful_version 'shellcheck' "$none"
+  fi
+
+  if shfmt_version=$(shfmt --version 2> /dev/null); then
+    echo_colorful_version 'shfmt' "$shellcheck_version"
+  else
+    echo_colorful_version 'shfmt' "$none"
+  fi
+
+  echo ""
+}
+
 function get_lua_info
 {
   if lua_version=$(lua -v 2> /dev/null); then
@@ -209,6 +227,7 @@ get_git_info
 get_c_info
 get_python_info
 get_lua_info
+get_shell_info
 get_go_info
 get_java_info
 get_rust_info

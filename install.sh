@@ -171,12 +171,14 @@ function install_cli_tools
 {
   local python_packages=('python' 'python-pip')
   local cpp_packages=('gcc' 'clang' 'gdb' 'make' 'cmake' 'ninja' 'boost')
+  local shell_packages=('shellcheck' 'shfmt')
   local dev_packages=('man-db' 'man-pages' 'man-pages-zh_cn')
   local cli_tools=('bat' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'cloc')
 
   local fetch=('fastfetch' 'cpufetch')
   paru -S "${cli_tools[@]}"
   paru -S "${dev_packages[@]}"
+  paru -S "${shellcheck[@]}"
   paru -S "${cpp_packages[@]}"
   paru -S "${python_packages[@]}"
   paru -S "${fetch[@]}"
@@ -350,7 +352,7 @@ while true; do
   echo "9) 退出"
   echo -e "${reset}"
 
-  read -r -p "请输入选项 (1-6): " choice
+  read -r -p "请输入选项 (1-9): " choice
   case $choice in
     1) init_git ;;
     2) init_pacman ;;
