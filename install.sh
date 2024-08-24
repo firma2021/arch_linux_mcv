@@ -170,7 +170,7 @@ function install_zsh
 function install_cli_tools
 {
   local python_packages=('python' 'python-pip')
-  local cpp_packages=('gcc' 'clang' 'gdb' 'make' 'cmake' 'ninja' 'boost')
+  local cpp_packages=('gcc' 'clang' 'gdb' 'make' 'cmake' 'ninja' 'libc++' 'boost')
   local shell_packages=('shellcheck' 'shfmt')
   local dev_packages=('man-db' 'man-pages' 'man-pages-zh_cn')
   local cli_tools=('bat' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'cloc')
