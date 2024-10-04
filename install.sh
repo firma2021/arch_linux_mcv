@@ -173,7 +173,7 @@ function install_cli_tools
   local cpp_packages=('gcc' 'clang' 'gdb' 'make' 'cmake' 'ninja' 'libc++' 'boost')
   local shell_packages=('shellcheck' 'shfmt')
   local dev_packages=('man-db' 'man-pages' 'man-pages-zh_cn')
-  local cli_tools=('bat' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'cloc')
+  local cli_tools=('bat' 'bat-extra' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'cloc')
 
   local fetch=('fastfetch' 'cpufetch')
   paru -S "${cli_tools[@]}"
