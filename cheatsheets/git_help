@@ -13,6 +13,8 @@ cat << EOF
 
 给main分支打tag git tag -a 0.1 -m "release for init" main, -a 的全称是 --annotate, 表示创建一个带注释的tag
 把tag提交到远程 git push --tags
+
+如果你当前在 feature 分支上，并且远程仓库的默认分支是 main，那么 git push 就会将当前的 feature 分支推送到远程仓库的 feature 分支中，而不是 main 分支。如果你想要推送 main 分支，需要使用 git push origin main 命令。
 EOF
 
 echo -e '\033[0m'
