@@ -61,18 +61,18 @@ function init_pacman
   echo -e "${purple}添加国内源:"
   sudo reflector --verbose --country 'China' --latest 5 --protocol https --sort rate --save /etc/pacman.d/mirrorlist
 
-  if pacman -Q paru; then
-    echo -e "${purple}已安装paru!"
+  if pacman -Q yay; then
+    echo -e "${purple}已安装yay!"
   else
-    echo -e "${purple} 安装AUR包管理器paru..."
+    echo -e "${purple} 安装AUR包管理器yay..."
     sudo pacman -S --needed base-devel
-    git clone https://aur.archlinux.org/paru.git
-    cd paru || echo "${red}无法进入 paru目录"
+    git clone https://aur.archlinux.org/yay.git
+    cd yay || echo "${red}无法进入 yay目录"
     makepkg -si
   fi
 
   echo -e "${purple}请您手动将 Color、ILoveCandy、VerbosePkgLists 添加到/etc/pacman.conf 中的[options] 下"
-  echo -e "${purple}请您手动将 BottomUp 添加到/etc/paru.conf 中的[options] 下"
+  echo -e "${purple}请您手动将 BottomUp 添加到/etc/yay.conf 中的[options] 下"
 
   echo -e "${orange}按下任意键以继续..."
   read -n 1 -s -r
@@ -101,7 +101,7 @@ function install_zsh
   else
     echo -e "${purple}安装zsh插件..."
     sudo pacman -S --noconfirm zsh-autosuggestions zsh-completions
-    paru -S --noconfirm zsh-fast-syntax-highlighting
+    yay -S --noconfirm zsh-fast-syntax-highlighting
   fi
 
   echo -e "${purple}" "已安装插件: "
@@ -175,13 +175,15 @@ function install_cli_tools
   local dev_packages=('man-db' 'man-pages' 'man-pages-zh_cn')
   local cli_tools=('bat' 'bat-extra' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'cloc')
 
+  cp clangd ~/.config
+
   local fetch=('fastfetch' 'cpufetch')
-  paru -S "${cli_tools[@]}"
-  paru -S "${dev_packages[@]}"
-  paru -S "${shellcheck[@]}"
-  paru -S "${cpp_packages[@]}"
-  paru -S "${python_packages[@]}"
-  paru -S "${fetch[@]}"
+  yay -S "${cli_tools[@]}"
+  yay -S "${dev_packages[@]}"
+  yay -S "${shellcheck[@]}"
+  yay -S "${cpp_packages[@]}"
+  yay -S "${python_packages[@]}"
+  yay -S "${fetch[@]}"
 
   config_dir=$(bat --config-dir)
   if [ ! -d "$config_dir/themes" ]; then
@@ -202,7 +204,7 @@ function install_fonts
 
   local fonts=('otf-monaspace' 'otf-monaspace-nerd' 'ttf-lxgw-wenkai')
 
-  paru -S "${fonts[@]}"
+  yay -S "${fonts[@]}"
 
   echo -e "${purple}"
   echo "执行pacman -Qe命令, 查看您安装的包"
@@ -215,7 +217,7 @@ function install_input_method
 
   local input_method=('fcitx5-im' 'fcitx5-chinese-addons' 'fcitx5-pinyin-moegirl' 'fcitx5-pinyin-zhwiki' 'fcitx5-material-color')
 
-  paru -S "${input_method[@]}"
+  yay -S "${input_method[@]}"
 
   echo -e "${purple}"
   echo "执行pacman -Qe命令, 查看您安装的包"
@@ -326,6 +328,10 @@ function set_chinese_locale
           echo "${locale} is already uncommented or not found"
       fi
   done
+
+  if [ ! -f /usr/share/i18n/locales/zh_CN ]; then
+      sudo cp assets/zh_CN /usr/share/i18n/locales
+  fi
 
   sudo locale-gen # Generate locales
 
