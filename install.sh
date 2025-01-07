@@ -29,26 +29,15 @@ function init_git
     git config --global user.email "$USER_EMAIL"
   fi
 
-  branch_name=$(git config --global --get init.defaultBranch)
-  echo -e "${purple}您当前的全局默认分支名为$branch_name"
-
-  if [[ -z $branch_name || $branch_name == 'master' ]]; then
-    echo -e "${purple}将git的默认分支名从master改为main..."
-    git config --global init.defaultBranch main
-  fi
+  echo -e "${purple}将git的默认分支名设置为main..."
+  git config --global init.defaultBranch main
 
   echo -e "${purple}设置git命令别名"
   git config --global alias.lg "log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%ci %cr) %C(bold blue)<%an>%Creset'"
   git config --global alias.br "branch --format='%(HEAD) %(color:yellow)%(refname:short)%(color:reset) - %(contents:subject) %(color:green)(%(committerdate:relative)) [%(authorname)]' --sort=-committerdate"
-  git config --global alias.pu "push origin HEAD"
-  git config --global alias.save "add -A && git commit -m 'chore: savepoint'"
-  git config --global alias.undo "reset HEAD~1 --mixed"
 
   echo -e "${purple}您当前的git配置为: "
   git config --list
-
-  echo -e "${orange}按下任意键以继续..."
-  read -n 1 -s -r
 }
 
 function init_pacman
@@ -71,35 +60,22 @@ function init_pacman
     makepkg -si
   fi
 
-  echo -e "${purple}请您手动将 Color、ILoveCandy、VerbosePkgLists 添加到/etc/pacman.conf 中的[options] 下"
-  echo -e "${purple}请您手动将 BottomUp 添加到/etc/yay.conf 中的[options] 下"
-
-  echo -e "${orange}按下任意键以继续..."
-  read -n 1 -s -r
+  echo -e "${purple}请您在 /etc/pacman.conf 中的 [options] 下, 添加Color、ILoveCandy、VerbosePkgLists; 注释掉NoProgressBar"
 }
 
 function install_zsh
 {
-  if pacman -Q zsh; then
-    echo -e "${purple}已安装zsh..."
-  else
+  if ! pacman -Q zsh; then
     echo -e "${purple}安装zsh..."
     sudo pacman -S --noconfirm zsh
   fi
 
-  echo -e "${purple}您当前使用的shell为 $SHELL"
+  echo -e "${purple}将 $USER 使用的shell切换为zsh..."
+  chsh -s /usr/bin/zsh
+  echo -e "将 root 使用的shell切换为zsh..."
+  sudo chsh -s /usr/bin/zsh root
 
-  if [[ $(basename "$SHELL") != 'zsh' ]]; then
-    echo -e "${purple}将 $USER 使用的shell切换为zsh..."
-    chsh -s "$(which zsh)"
-    echo -e "将 root 使用的shell切换为zsh..."
-    sudo chsh -s "$(which zsh)" root
-  fi
-
-  if pacman -Q zsh-autosuggestions zsh-fast-syntax-highlighting zsh-completions; then
-    echo -e "${purple}zsh插件已安装..."
-  else
-    echo -e "${purple}安装zsh插件..."
+  if ! pacman -Q zsh-autosuggestions zsh-fast-syntax-highlighting zsh-completions; then
     sudo pacman -S --noconfirm zsh-autosuggestions zsh-completions
     yay -S --noconfirm zsh-fast-syntax-highlighting
   fi
@@ -107,64 +83,15 @@ function install_zsh
   echo -e "${purple}" "已安装插件: "
   ls /usr/share/zsh/plugins
 
-  echo -e "${orange}按下任意键以继续..."
-  read -n 1 -s -r
-
   if [ -f "$HOME/.zshrc" ]; then
-    echo -e "${purple}已存在旧的.zshrc配置文件。您想要备份它还是直接覆盖 ?"
-    echo -e "1) 备份后覆盖"
-    echo -e "2) 直接覆盖"
-    echo -e '请输入您的选择 (1/2): '
-    read -r choice
-
-    if [ "$choice" -eq 1 ]; then
-      echo -e "${purple}备份旧配置..."
       backup_file_name=".zshrc_$(date +'%Y-%m-%d-%H-%M-%S')"
       mv ~/.zshrc "$HOME/$backup_file_name"
-      echo -e "${purple}将.zshrc 文件备份为 $HOME/$backup_file_name..."
-      cp -pv ./zsh_config/.zshrc ~/.zshrc
-    elif [ "$choice" -eq 2 ]; then
-      echo -e "${purple}直接覆盖.zshrc配置文件..."
-      cp -pv ./zsh_config/.zshrc ~/.zshrc
-    else
-      echo -e "${red}无效的选择, 请输入1或2."
-    fi
-  else
-    cp -pv ./zsh_config/.zshrc ~/.zshrc
+      echo -e "${purple}已存在旧的.zshrc配置文件。备份为 $HOME/$backup_file_name"
   fi
+  cp -pv ./zsh_config/.zshrc ~/.zshrc
 
-  if [ -d "/usr/share/zsh/zsh_scripts" ]; then
-    echo -e "${purple}检测到旧的zsh_scripts目录，选择以下操作："
-    echo "1. 合并"
-    echo "2. 删除旧目录"
-    echo "3. 备份旧目录"
-    echo "请输入您的选择 (1/2/3): "
-    read -r choice
-
-    case $choice in
-      1)
-        echo -e "${purple}合并目录..."
-        sudo cp -rpiv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
-        ;;
-      2)
-        echo -e "${purple}删除旧目录..."
-        sudo rm -rf /usr/share/zsh/zsh_scripts
-        sudo cp -rpv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
-        ;;
-      3)
-        backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
-        echo -e "${purple}备份旧目录为 /usr/share/zsh/zsh_scripts_$backup_file_name"
-        sudo mv /usr/share/zsh/zsh_scripts "/usr/share/zsh/zsh_scripts_$backup_file_name"
-        sudo cp -rpv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
-        ;;
-      *)
-        echo -e "${purple}无效的选择，退出脚本。"
-        exit 1
-        ;;
-    esac
-  else
-    sudo cp -rpv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
-  fi
+  echo -e "${purple}" "复制zsh脚本..."
+  sudo cp -rpiv ./zsh_config/zsh_scripts /usr/share/zsh/zsh_scripts
 }
 
 function install_cli_tools
@@ -173,43 +100,24 @@ function install_cli_tools
   local cpp_packages=('gcc' 'clang' 'gdb' 'make' 'cmake' 'ninja' 'libc++' 'boost')
   local shell_packages=('shellcheck' 'shfmt')
   local dev_packages=('man-db' 'man-pages' 'man-pages-zh_cn')
-  local cli_tools=('bat' 'bat-extra' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'procs' 'dust' 'duf' 'cloc')
+  local cli_tools=('fastfetch' 'bat' 'bat-extras' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'dust' 'duf' 'cloc')
 
-  cp clangd ~/.config
+  cp -rpiv clangd ~/.config
 
-  local fetch=('fastfetch' 'cpufetch')
   yay -S "${cli_tools[@]}"
   yay -S "${dev_packages[@]}"
   yay -S "${shellcheck[@]}"
   yay -S "${cpp_packages[@]}"
   yay -S "${python_packages[@]}"
-  yay -S "${fetch[@]}"
 
-  config_dir=$(bat --config-dir)
-  if [ ! -d "$config_dir/themes" ]; then
-    git clone https://github.com/catppuccin/bat.git "$config_dir/themes"
-    bat cache --build
-    bat --generate-config-file
-    echo '--theme="Catppuccin Latte"' >> "$config_dir/config"
-  fi
-
-  echo -e "${purple}"
-  echo "执行pacman -Qe命令, 查看您安装的包"
-  echo -e "${orange}"
-  read -r -p "按回车键继续..."
+  echo -e "${purple}" "执行pacman -Qe命令, 查看您安装的包"
 }
 
 function install_fonts
 {
-
   local fonts=('otf-monaspace' 'otf-monaspace-nerd' 'ttf-lxgw-wenkai')
 
   yay -S "${fonts[@]}"
-
-  echo -e "${purple}"
-  echo "执行pacman -Qe命令, 查看您安装的包"
-  echo -e "${orange}"
-  read -r -p "按回车键继续..."
 }
 
 function install_input_method
@@ -218,80 +126,23 @@ function install_input_method
   local input_method=('fcitx5-im' 'fcitx5-chinese-addons' 'fcitx5-pinyin-moegirl' 'fcitx5-pinyin-zhwiki' 'fcitx5-material-color')
 
   yay -S "${input_method[@]}"
-
-  echo -e "${purple}"
-  echo "执行pacman -Qe命令, 查看您安装的包"
-  echo -e "${orange}"
-  read -r -p "按回车键继续..."
 }
 
 function install_shell_scripts
 {
   if [ -d "/usr/share/shell_scripts" ]; then
-    echo -e "${purple}检测到旧的shell脚本目录，选择以下操作："
-    echo "1. 合并"
-    echo "2. 删除旧目录"
-    echo "3. 备份旧目录"
-    echo "请输入您的选择 (1/2/3): "
-    read -r choice
-
-    case $choice in
-      1)
-        echo -e "${purple}合并目录..."
-        sudo cp -rpi ./shell_scripts /usr/share/shell_scripts
-        ;;
-      2)
-        echo -e "${purple}删除旧目录..."
-        sudo rm -rf /usr/share/shell_scripts
-        sudo cp -rp ./shell_scripts /usr/share/shell_scripts
-        ;;
-      3)
-        backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
-        echo -e "${purple}备份旧目录为 /usr/share/zsh/zsh_scripts_$backup_file_name"
-        sudo mv /usr/share/shell_scripts "/usr/share/shell_scripts_$backup_file_name"
-        sudo cp -rp ./shell_scripts /usr/share/shell_scripts
-        ;;
-      *)
-        echo -e "${purple}无效的选择，退出脚本。"
-        exit 1
-        ;;
-    esac
-  else
-    sudo cp -rpv ./shell_scripts /usr/share/shell_scripts
+    backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
+    sudo mv /usr/share/shell_scripts "/usr/share/shell_scripts_$backup_file_name"
+    echo -e "${purple}备份旧目录为 /usr/share/zsh/zsh_scripts_$backup_file_name"
   fi
+    sudo cp -rpv ./shell_scripts /usr/share/shell_scripts
 
   if [ -d "/usr/share/cheatsheets" ]; then
-    echo -e "${purple}检测到旧的cheatsheets目录，选择以下操作："
-    echo "1. 合并"
-    echo "2. 删除旧目录"
-    echo "3. 备份旧目录"
-    echo "请输入您的选择 (1/2/3): "
-    read -r choice
-
-    case $choice in
-      1)
-        echo -e "${purple}合并目录..."
-        sudo cp -rpi ./cheatsheets /usr/share/cheatsheets
-        ;;
-      2)
-        echo -e "${purple}删除旧目录..."
-        sudo rm -rf /usr/share/cheatsheets
-        sudo cp -rp ./cheatsheets /usr/share/cheatsheets
-        ;;
-      3)
-        backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
-        echo -e "${purple}备份旧目录为 /usr/share/cheatsheets_$backup_file_name"
-        sudo mv /usr/share/cheatsheets "/usr/share/cheatsheets_$backup_file_name"
-        sudo cp -rp ./cheatsheets /usr/share/cheatsheets
-        ;;
-      *)
-        echo -e "${purple}无效的选择，退出脚本。"
-        exit 1
-        ;;
-    esac
-  else
-    sudo cp -rpv ./cheatsheets /usr/share/cheatsheets
+    backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
+    sudo mv /usr/share/cheatsheets "/usr/share/cheatsheets_$backup_file_name"
+    echo -e "${purple}备份旧目录为 /usr/share/cheatsheets_$backup_file_name"
   fi
+  sudo cp -rpv ./cheatsheets /usr/share/cheatsheets
 
   bashrc="$HOME/.bashrc"
   zshrc="$HOME/.zshrc"
@@ -347,12 +198,12 @@ function set_chinese_locale
 
 while true; do
   echo -e "${purple}请选择要执行的功能:"
-  echo "1) 安装并初始化git"
-  echo "2) 安装并初始化包管理器"
-  echo "3) 安装zsh, zsh插件, 实用zsh脚本"
+  echo "1) 安装/初始化 git"
+  echo "2) 安装/初始化 pacman 和 yay"
+  echo "3) 安装 zsh/zsh插件/实用zsh脚本"
   echo "4) 安装开发环境和命令行工具"
   echo "5) 安装实用 shell 脚本"
-   echo "6) 设置中文locale"
+  echo "6) 设置中文locale"
   echo "7) 安装字体"
   echo "8) 安装输入法"
   echo "9) 退出"
