@@ -190,7 +190,7 @@ function set_chinese_locale
 
   echo "export LC_ALL=zh_CN.UTF-8
   export LANG=zh_CN.UTF-8
-  export LANGUAGE=zh_CN:en_US" | sudo tee -a /etc/profile # sudo 只对 echo 命令有效，而不对重定向操作符 >> 有效; tee命令用于读取标准输入的数据，并将其内容输出成文件。
+  export LANGUAGE=zh_CN:en_US" | sudo tee -a /etc/profile # sudo 只对 echo 命令有效，而不对重定向操作符 >> 有效; tee从标准输入读取数据，并将其输出到标准输出和文件中
 
   sudo pacman -S wqy-microhei # Install wqy-microhei font package
 }
