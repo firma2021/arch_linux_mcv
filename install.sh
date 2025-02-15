@@ -84,9 +84,9 @@ function install_zsh
   ls /usr/share/zsh/plugins
 
   if [ -f "$HOME/.zshrc" ]; then
-      backup_file_name=".zshrc_$(date +'%Y-%m-%d-%H-%M-%S')"
-      mv ~/.zshrc "$HOME/$backup_file_name"
-      echo -e "${purple}已存在旧的.zshrc配置文件。备份为 $HOME/$backup_file_name"
+    backup_file_name=".zshrc_$(date +'%Y-%m-%d-%H-%M-%S')"
+    mv ~/.zshrc "$HOME/$backup_file_name"
+    echo -e "${purple}已存在旧的.zshrc配置文件。备份为 $HOME/$backup_file_name"
   fi
   cp -pv ./zsh_config/.zshrc ~/.zshrc
 
@@ -135,7 +135,7 @@ function install_shell_scripts
     sudo mv /usr/share/shell_scripts "/usr/share/shell_scripts_$backup_file_name"
     echo -e "${purple}备份旧目录为 /usr/share/zsh/zsh_scripts_$backup_file_name"
   fi
-    sudo cp -rpv ./shell_scripts /usr/share/shell_scripts
+  sudo cp -rpv ./shell_scripts /usr/share/shell_scripts
 
   if [ -d "/usr/share/cheatsheets" ]; then
     backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
@@ -167,44 +167,32 @@ function set_chinese_locale
   locales=("en_US.UTF-8" "zh_CN.UTF-8")
 
   if [ ! -f /etc/locale.gen ]; then
-      echo "Error: /etc/locale.gen file not found."
-      return
+    echo "Error: /etc/locale.gen file not found."
+    return
   fi
 
   for locale in "${locales[@]}"; do
-      if grep -q "^#${locale}" /etc/locale.gen; then
-          echo "Uncommenting ${locale}"
-          sudo sed -i "s/^#${locale}/${locale}/" /etc/locale.gen
-      else
-          echo "${locale} is already uncommented or not found"
-      fi
+    if grep -q "^#${locale}" /etc/locale.gen; then
+      echo "Uncommenting ${locale}"
+      sudo sed -i "s/^#${locale}/${locale}/" /etc/locale.gen
+    else
+      echo "${locale} is already uncommented or not found"
+    fi
   done
 
   if [ ! -f /usr/share/i18n/locales/zh_CN ]; then
-      sudo cp assets/zh_CN /usr/share/i18n/locales
+    sudo cp assets/zh_CN /usr/share/i18n/locales
   fi
 
   sudo locale-gen # Generate locales
 
-  echo "LANG=en_US.UTF-8" | sudo tee /etc/locale.conf   # Note: It's not recommended to set the global LANG locale to zh_CN.UTF-8 in /etc/locale.conf, as it will cause tofu blocks in TTY without CJK fonts.
+  echo "LANG=en_US.UTF-8" | sudo tee /etc/locale.conf # Note: It's not recommended to set the global LANG locale to zh_CN.UTF-8 in /etc/locale.conf, as it will cause tofu blocks in TTY without CJK fonts.
 
   echo "export LC_ALL=zh_CN.UTF-8
   export LANG=zh_CN.UTF-8
   export LANGUAGE=zh_CN:en_US" | sudo tee -a /etc/profile # sudo 只对 echo 命令有效，而不对重定向操作符 >> 有效; tee命令用于读取标准输入的数据，并将其内容输出成文件。
 
-
   sudo pacman -S wqy-microhei # Install wqy-microhei font package
-}
-
-
-# 显示建议
-echo -e "\n${YELLOW}附加信息：${NC}"
-lspci | grep -i VGA
-echo -e "\n提示："
-echo -e "1. 如果使用NVIDIA显卡，建议安装官方闭源驱动 (nvidia)"
-echo -e "2. 双显卡笔记本需要额外配置混合显卡方案"
-echo -e "3. 可以通过以下命令安装驱动："
-echo -e "   sudo pacman -S <驱动包名称>"
 }
 
 while true; do
