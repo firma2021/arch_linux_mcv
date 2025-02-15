@@ -106,7 +106,7 @@ function install_cli_tools
 
   yay -S "${cli_tools[@]}"
   yay -S "${dev_packages[@]}"
-  yay -S "${shellcheck[@]}"
+  yay -S "${shell_packages[@]}"
   yay -S "${cpp_packages[@]}"
   yay -S "${python_packages[@]}"
 
