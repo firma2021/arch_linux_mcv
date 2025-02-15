@@ -196,6 +196,17 @@ function set_chinese_locale
   sudo pacman -S wqy-microhei # Install wqy-microhei font package
 }
 
+
+# 显示建议
+echo -e "\n${YELLOW}附加信息：${NC}"
+lspci | grep -i VGA
+echo -e "\n提示："
+echo -e "1. 如果使用NVIDIA显卡，建议安装官方闭源驱动 (nvidia)"
+echo -e "2. 双显卡笔记本需要额外配置混合显卡方案"
+echo -e "3. 可以通过以下命令安装驱动："
+echo -e "   sudo pacman -S <驱动包名称>"
+}
+
 while true; do
   echo -e "${purple}请选择要执行的功能:"
   echo "1) 安装/初始化 git"
