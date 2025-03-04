@@ -169,7 +169,7 @@ while true; do
   echo "1) 安装/初始化 git"
   echo "2) 安装/初始化 pacman 和 yay"
   echo "3) 安装zsh/zsh插件/实用zsh脚本"
-  echo "4) 安装命令行工具"
+  echo "4) 安装开发环境和命令行工具"
   echo "5) 安装实用 shell 脚本"
   echo "6) 安装c++, python, shell开发工具"
   echo "7) 安装字体"
