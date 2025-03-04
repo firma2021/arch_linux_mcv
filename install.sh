@@ -96,19 +96,27 @@ function install_zsh
 
 function install_cli_tools
 {
+
+  local cli_tools=('fastfetch' 'bat' 'bat-extras' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'dust' 'duf' 'cloc')
+
+  yay -S "${cli_tools[@]}"
+
+  echo -e "${purple}" "执行pacman -Qe命令, 查看您安装的包"
+}
+
+function install_dev_tools
+{
   local python_packages=('python' 'python-pip')
   local cpp_packages=('gcc' 'clang' 'gdb' 'make' 'cmake' 'ninja' 'libc++' 'boost')
   local shell_packages=('shellcheck' 'shfmt')
   local dev_packages=('man-db' 'man-pages' 'man-pages-zh_cn')
-  local cli_tools=('fastfetch' 'bat' 'bat-extras' 'eza' 'fd' 'procs' 'gping' 'fzf' 'ripgrep' 'dust' 'duf' 'cloc')
 
-  cp -rpiv clangd ~/.config
-
-  yay -S "${cli_tools[@]}"
   yay -S "${dev_packages[@]}"
   yay -S "${shell_packages[@]}"
   yay -S "${cpp_packages[@]}"
   yay -S "${python_packages[@]}"
+
+  cp -rpiv clangd ~/.config
 
   echo -e "${purple}" "执行pacman -Qe命令, 查看您安装的包"
 }
@@ -123,9 +131,11 @@ function install_fonts
 function install_input_method
 {
 
-  local input_method=('fcitx5-im' 'fcitx5-chinese-addons' 'fcitx5-pinyin-moegirl' 'fcitx5-pinyin-zhwiki' 'fcitx5-material-color')
+  local input_method=('fcitx5-im' 'fcitx5-chinese-addons' 'fcitx5-pinyin-moegirl' 'fcitx5-pinyin-zhwiki')
 
   yay -S "${input_method[@]}"
+
+  echo '请在/etc/environment中添加XMODIFIERS=@im=fcitx'
 }
 
 function install_shell_scripts
@@ -137,75 +147,36 @@ function install_shell_scripts
   fi
   sudo cp -rpv ./shell_scripts /usr/share/shell_scripts
 
-  if [ -d "/usr/share/cheatsheets" ]; then
-    backup_file_name="$(date +'%Y-%m-%d-%H-%M-%S')"
-    sudo mv /usr/share/cheatsheets "/usr/share/cheatsheets_$backup_file_name"
-    echo -e "${purple}备份旧目录为 /usr/share/cheatsheets_$backup_file_name"
-  fi
-  sudo cp -rpv ./cheatsheets /usr/share/cheatsheets
-
   bashrc="$HOME/.bashrc"
   zshrc="$HOME/.zshrc"
 
   if ! grep -q 'export PATH="$PATH:/usr/share/shell_scripts"' "$bashrc"; then
     echo 'export PATH="$PATH:/usr/share/shell_scripts"' >> "$bashrc"
   fi
-  if ! grep -q 'export PATH="$PATH:/usr/share/cheatsheets"' "$bashrc"; then
-    echo 'export PATH="$PATH:/usr/share/cheatsheets"' >> "$bashrc"
-  fi
 
   if ! grep -q 'export PATH="$PATH:/usr/share/shell_scripts"' "$zshrc"; then
     echo 'export PATH="$PATH:/usr/share/shell_scripts"' >> "$zshrc"
   fi
-  if ! grep -q 'export PATH="$PATH:/usr/share/cheatsheets"' "$zshrc"; then
-    echo 'export PATH="$PATH:/usr/share/cheatsheets"' >> "$zshrc"
-  fi
 }
 
-function set_chinese_locale
+function set_local_rtc
 {
-  locales=("en_US.UTF-8" "zh_CN.UTF-8")
-
-  if [ ! -f /etc/locale.gen ]; then
-    echo "Error: /etc/locale.gen file not found."
-    return
-  fi
-
-  for locale in "${locales[@]}"; do
-    if grep -q "^#${locale}" /etc/locale.gen; then
-      echo "Uncommenting ${locale}"
-      sudo sed -i "s/^#${locale}/${locale}/" /etc/locale.gen
-    else
-      echo "${locale} is already uncommented or not found"
-    fi
-  done
-
-  if [ ! -f /usr/share/i18n/locales/zh_CN ]; then
-    sudo cp assets/zh_CN /usr/share/i18n/locales
-  fi
-
-  sudo locale-gen # Generate locales
-
-  echo "LANG=en_US.UTF-8" | sudo tee /etc/locale.conf # Note: It's not recommended to set the global LANG locale to zh_CN.UTF-8 in /etc/locale.conf, as it will cause tofu blocks in TTY without CJK fonts.
-
-  echo "export LC_ALL=zh_CN.UTF-8
-  export LANG=zh_CN.UTF-8
-  export LANGUAGE=zh_CN:en_US" | sudo tee -a /etc/profile # sudo 只对 echo 命令有效，而不对重定向操作符 >> 有效; tee从标准输入读取数据，并将其输出到标准输出和文件中
-
-  sudo pacman -S wqy-microhei # Install wqy-microhei font package
+  timedatectl set-local-rtc 1
 }
 
 while true; do
   echo -e "${purple}请选择要执行的功能:"
   echo "1) 安装/初始化 git"
   echo "2) 安装/初始化 pacman 和 yay"
-  echo "3) 安装 zsh/zsh插件/实用zsh脚本"
-  echo "4) 安装开发环境和命令行工具"
+  echo "3) 安装zsh/zsh插件/实用zsh脚本"
+  echo "4) 安装命令行工具"
   echo "5) 安装实用 shell 脚本"
-  echo "6) 设置中文locale"
+  echo "6) 安装c++, python, shell开发工具"
   echo "7) 安装字体"
   echo "8) 安装输入法"
-  echo "9) 退出"
+  echo "9) 将硬件时钟设置为本地时区"
+  echo "10) 退出"
+
   echo -e "${reset}"
 
   read -r -p "请输入选项 (1-9): " choice
@@ -215,10 +186,11 @@ while true; do
     3) install_zsh ;;
     4) install_cli_tools ;;
     5) install_shell_scripts ;;
-    6) set_chinese_locale ;;
+    6) install_dev_tools ;;
     7) install_fonts ;;
     8) install_input_method ;;
-    9)
+    9) set_local_rtc ;;
+    10)
       echo -e "${purple}退出程序"
       exit 0
       ;;

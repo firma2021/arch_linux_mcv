@@ -1,14 +1,5 @@
 #!/usr/bin/env bash
 
-# generate_random_true_color()
-# {
-
-#   local R=$((RANDOM % 256)) # 生成随机的 RGB 值
-#   local G=$((RANDOM % 256))
-#   local B=$((RANDOM % 256))
-
-#   echo -e "\e[38;2;${R};${G};${B}m" # 输出真彩色的 ANSI escape code
-# }
 generate_random_color()
 {
   echo -n -e "\e[1;3$((RANDOM % 7 + 1))m"

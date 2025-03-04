@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+
+c_flags="-lm -Wall -Wextra -Wpedantic -Wnull-dereference -Wcast-align -Wparentheses -Walloc-zero -Wcast-qual -Wconversion -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wfloat-equal -Wformat=2 -Wformat-signedness -Winit-self -Wlogical-op -Wmissing-declarations -Wshadow -Wswitch-default -Wswitch-enum -Wundef -Wunused-macros -Wwrite-strings -Wsign-conversion -Og -g3 -std=c23 -fsanitize=address,undefined"
+cpp_flags="-lpthread -Wall -Wextra -Wpedantic -Wnull-dereference -Wmissing-noreturn -Wcast-align -Wparentheses -Walloc-zero -Wcast-qual -Wconversion -Wdouble-promotion -Wduplicated-branches -Wduplicated-cond -Wfloat-equal -Wformat=2 -Wformat-signedness -Winit-self -Wlogical-op -Wmissing-declarations -Wshadow -Wswitch-default -Wswitch-enum -Wundef -Wunused-macros -Wwrite-strings -Wnon-virtual-dtor -Wzero-as-null-pointer-constant -Wsign-conversion -Wsuggest-override -Og -g3 -std=c++23 -fsanitize=address,undefined"
+
+if [[ $# -eq 0 ]]; then
+  echo "错误：请提供源文件名"
+  exit 1
+fi
+
+if [ "$1" = "-i" ]; then
+  if [ $# -lt 2 ]; then
+    echo "错误：请提供源文件名"
+    exit 1
+  fi
+  shift
+  file="$1"
+
+  if [ ! -f "$file" ]; then
+    echo "错误：文件 '$file' 不存在"
+    exit 1
+  fi
+
+  ext="${file##*.}"
+  if [[ $ext != "c" && $ext != "cpp" ]]; then
+    echo "错误：不支持 .$ext 文件扩展名"
+    exit 1
+  fi
+
+  if [ "$ext" = "c" ]; then
+    base_flags="$c_flags"
+    std="c23"
+    compiler="gcc"
+  else
+    base_flags="$cpp_flags"
+    std="c++23"
+    compiler="g++"
+  fi
+
+  read -p "标准版本 [$std]: " new_std
+  read -p "编译模式 (debug/release) [debug]: " mode
+  read -p "输出文件名 [${file%.*}]: " out_name
+  read -p "执行后删除文件? (y/n) [y]: " nokeep
+
+  std=${new_std:-$std}
+  mode=${mode:-debug}
+  out_name=${out_name:-${file%.*}}
+  nokeep=${nokeep:-y}
+
+  final_flags="${base_flags//-std=*[^ ]/-std=$std }"
+
+  if [ "$mode" = "release" ]; then
+    final_flags="${final_flags//-Og/-O3}"
+    final_flags="${final_flags//-g3/}"
+    final_flags="${final_flags//-fsanitize=address,undefined/}"
+  fi
+
+  compiler_cmd="$compiler $final_flags -o '$out_name' '$file'"
+  if eval "$compiler_cmd"; then
+    ./"$out_name"
+
+    if [ "$nokeep" = "y" ]; then
+      rm -f "$out_name"
+    fi
+  else
+    echo "编译失败"
+    exit 1
+  fi
+
+else
+  file="$1"
+
+  if [ ! -f "$file" ]; then
+    echo "错误：文件 '$file' 不存在"
+    exit 1
+  fi
+
+  ext="${file##*.}"
+  if [[ $ext != "c" && $ext != "cpp" ]]; then
+    echo "错误：不支持 .$ext 文件扩展名"
+    exit 1
+  fi
+
+  out_name="${file%.*}"
+
+  if [ "$ext" = "c" ]; then
+    compiler_cmd="gcc $c_flags -o '$out_name' '$file'" # 用单引号包裹file,防止file中有空格
+  else
+    compiler_cmd="g++ $cpp_flags -o '$out_name' '$file'"
+  fi
+
+  if eval "$compiler_cmd"; then
+    ./"$out_name"
+    rm -f "$out_name"
+  else
+    echo "编译失败"
+    exit 1
+  fi
+fi
