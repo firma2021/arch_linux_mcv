@@ -1,0 +1,104 @@
+# https://clangd.llvm.org/config.html
+# https://clangd.llvm.org/faq#can-you-give-an-example-configuration-file-for-clangd
+
+# Configuration(user, project) is combined when this is sensible. In case of conflicts, user config has the highest precedence, then inner project, then outer project.
+# Changes should take effect immediately as you continue to edit code.
+
+Index:
+  Background: Build   # default. Legal values are Build or Skip
+  StandardLibrary: No # default. eagerly indexes the standard library, to give code completions of standard library symbols on an empty file.
+
+Style:
+  FullyQualifiedNamespaces: No # 在代码补全或导航功能中是否会禁止提供添加"using"声明的建议
+
+# The settings are merged with any settings found in .clang-tidy configuration files with the ones from clangd configs taking precedence.
+Diagnostics:
+  ClangTidy:
+    Add:
+      - boost-use-to-string
+      - bugprone-*
+      - cert-*
+      - concurrency-*
+      - cppcoreguidelines-*
+      - google-*
+      - hicpp-*
+      - misc-*
+      - modernize-*
+      - mpi-*
+      - openmp-use-default-none
+      - performance-*
+      - portability-*
+      - readability-*
+    Remove:
+      - bugprone-easily-swappable-parameters
+      - bugprone-signal-handler
+      - bugprone-exception-escape
+      - cert-dcl51-cpp
+      - cert-dcl37-c
+      - cppcoreguidelines-avoid-do-while
+      - cppcoreguidelines-avoid-magic-numbers
+      - cppcoreguidelines-avoid-c-arrays
+      - cppcoreguidelines-pro-bounds-pointer-arithmetic
+      - cppcoreguidelines-non-private-member-variables-in-classes
+      - cppcoreguidelines-pro-type-union-access
+      - google-build-using-namespace
+      - google-readability-todo
+      - google-objc-function-naming
+      - misc-non-private-member-variables-in-classes
+      - misc-unused-alias-decls
+      - misc-unused-parameters
+      - misc-unused-using-decls
+      - modernize-avoid-c-arrays
+      - modernize-use-trailing-return-type
+      - portability-restrict-system-includes
+      - readability-braces-around-statements
+      - readability-function-cognitive-complexity
+      - readability-function-size
+      - readability-identifier-length
+      - readability-identifier-naming
+      - readability-magic-numbers
+      - readability-named-parameter
+      - readability-redundant-access-specifiers
+      - readability-redundant-member-init
+      - readability-simplify-boolean-expr
+      - readability-suspicious-call-argument
+      - readability-uppercase-literal-suffix
+    CheckOptions:
+      readability-identifier-naming.ClassCase: CamelCase
+    FastCheckFilter: Loose
+  Suppress: ["type_unsupported"]
+  UnusedIncludes: Strict
+  MissingIncludes: None
+
+Completion:
+  AllScopes: Yes
+
+# use default config
+# 聚合初始化中的指示符，如 std::vector<int> arr = {[0]= 1, [1]= 2}
+# 是否启用
+# 函数调用的形式参数名
+# 推导出的类型
+InlayHints:
+  BlockEnd: Yes
+  Designators: Yes
+  Enabled: Yes
+  ParameterNames: Yes
+  DeducedTypes: Yes
+  TypeNameLimit: 24
+
+# ShowAKA: 打印desugared types，即去除语法糖后的类型，如vector<int>::value_type (aka int)
+Hover:
+  ShowAKA: Yes
+
+---
+If:
+  PathMatch: [.*\.c]
+CompileFlags:
+  Remove: [-std=c++*, -std=cxx*]
+
+---
+If:
+  PathMatch: /usr/include/.*
+Diagnostics:
+  ClangTidy:
+    Remove: '*'

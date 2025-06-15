@@ -1,0 +1,205 @@
+#!/usr/bin/env bash
+
+readonly VERSION="1.0.3"
+
+# generate_random_true_color()
+# {
+#   local colors=(
+#     "\e[38;2;255;0;0m"     # 深红
+#     "\e[38;2;255;165;0m"   # 橙色
+#     "\e[38;2;255;215;0m"   # 金黄
+#     "\e[38;2;255;20;147m"  # 深粉红
+#     "\e[38;2;178;34;34m"   # 火砖红
+#     "\e[38;2;220;20;60m"   # 火红
+#     "\e[38;2;255;192;203m" # 樱花
+#     "\e[38;2;255;215;0m"   # 金粉
+#   )
+#   echo -en "${colors[RANDOM % ${#colors[@]}]}"
+# }
+
+generate_random_color()
+{
+  echo -n -e "\e[1;3$((RANDOM % 7 + 1))m"
+}
+
+readonly fireworks_radius=2
+
+get_and_check_terminal_size()
+{
+  columns=$(tput cols)
+  lines=$(tput lines)
+
+  if ((columns - fireworks_radius * 4 < 0 || lines - fireworks_radius * 4 < 0)); then
+    generate_random_color
+    echo '主人, 终端放不下人家呢 ✘>﹏<✘'
+    exit 1
+  fi
+
+  max_fireworks_count=$((lines / 4))
+  max_firework_height=$((lines - fireworks_radius - 2))
+
+  fireworks_status=()
+  for ((i = 0; i < max_fireworks_count; ++i)); do
+    fireworks_status+=("$launch")
+  done
+}
+
+handle_terminal_resize()
+{
+  clear
+
+  generate_random_color
+  echo '不要拽人家啦 ✘>﹏<✘'
+  sleep 2s
+  clear
+
+  get_and_check_terminal_size
+}
+
+trap handle_terminal_resize SIGWINCH
+
+readonly trail_char=('¡' '|' '•' '°' '⋮') # 烟花上升时留下的轨迹
+readonly bloom_chars=('★' '✿' '❀' '✦' '✧' '◆')
+
+readonly launch=0
+readonly rising=1
+readonly bloom=2
+readonly fade=3
+
+fireworks_status=()
+
+fireworks_x=() # 存储每个烟花的x坐标 (水平向右)
+fireworks_y=() # 存储每个烟花的y坐标 (竖直向下)
+
+readonly max_fireworks_radius=9
+
+# 在x, y处绘制烟花
+# 首先找到圆的外接矩形:
+# 检查以 (x, y) 为中心，2r 为边长的正方形 上的所有点，
+# 如果点在 以 (x, y) 为圆心，半径为 r 的圆上, 且这个点没有超出屏幕，就打印这个点
+# 从内向外逐层打印, 实现扩散的效果
+# 不幸的是, 由于字符的宽高比不同, 打印出来的并不是圆形
+do_bloom()
+{
+  local x=$1 y=$2 char=$3
+
+  for ((r = 0; r <= fireworks_radius; ++r)); do
+    for ((dy = -r; dy <= r; ++dy)); do
+      for ((dx = -r; dx <= r; ++dx)); do
+        if ((dx * dx + dy * dy <= r * r)); then
+          local px=$((x + dx))
+          local py=$((y + dy))
+          if [[ $px -ge 0 && $px -lt $columns && $py -ge 0 && $py -lt $lines ]]; then
+            tput cup $py $px # terminal put cursor position
+            echo -n "${char}"
+          fi
+        fi
+      done
+    done
+  done
+
+  sleep 0.1
+}
+
+draw_fireworks()
+{
+  clear
+
+  echo "${#fireworks_status[@]}"
+
+  local i=0
+  while ((i < ${#fireworks_status[@]})); do
+    status="${fireworks_status[i]}"
+    case $status in
+      "$launch")
+        fireworks_x[i]=$((RANDOM % (columns - 2 * fireworks_radius - 4) + fireworks_radius + 2))
+        fireworks_y[i]=$lines
+        fireworks_status[i]="$rising"
+
+        ((++i))
+        ;;
+      "$rising")
+        # 绘制新的尾巴
+        generate_random_color
+        local trail="${trail_char[RANDOM % ${#trail_char[@]}]}"
+        for row in 0 1; do
+          for col in 0 1; do
+            local py=$((fireworks_y[i] + row))
+            local px=$((fireworks_x[i] + col))
+            if ((py >= 0 && py < lines && px >= 0 && px < columns)); then
+              tput cup "$py" "$px"
+              echo -n "$trail"
+            fi
+          done
+        done
+
+        ((--fireworks_y[i]))
+
+        current_firework_height=$((lines - "${fireworks_y[i]}"))
+        if ((status != "$bloom" && current_firework_height > max_fireworks_radius && "${fireworks_y[i]}" > 0)); then
+          should_bloom=0
+          if ((RANDOM % 100 < 7 || current_firework_height > max_firework_height)); then
+            should_bloom=1
+          fi
+          if ((should_bloom)); then
+            status="$bloom"
+            fireworks_status[i]="$bloom"
+          fi
+        fi
+
+        ((++i))
+        ;;
+      "$bloom")
+        generate_random_color
+        do_bloom "${fireworks_x[i]}" "${fireworks_y[i]}" "${bloom_chars[RANDOM % ${#bloom_chars[@]}]}"
+        fireworks_status[i]="$fade"
+
+        ((++i))
+        ;;
+      "$fade")
+        fireworks_status[i]="$launch"
+        ;;
+    esac
+  done
+}
+
+check_output_redirection()
+{
+  if ! [ -t 1 ]; then
+    output_target=$(readlink -f /proc/self/fd/1)
+
+    generate_random_color >&2
+    echo "主人，我的标准输出被重定向到 $output_target 啦 ✘>﹏<✘" >&2 # 输出到标准错误。>&2之间不能有空格
+
+    exit 1
+  fi
+}
+
+cleanup()
+{
+  clear
+
+  generate_random_color
+
+  echo -e "烟花绽放，美好永存. 感谢欣赏我的烟花秀. ✘╹◡╹✘"
+
+  script_name="${0##*[\\/]}"
+  script_name="${script_name%.sh}"
+  echo "$script_name Version: $VERSION"
+
+  tput cnorm
+  tput sgr0
+}
+
+trap cleanup EXIT # cursor normal, Select Graphic Rendition
+trap 'exit 0' INT QUIT
+
+tput civis # cursor invisible
+
+check_output_redirection
+get_and_check_terminal_size
+
+while true; do
+  draw_fireworks
+  sleep 0.1
+done

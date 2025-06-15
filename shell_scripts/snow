@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+
+# set -e: 如果任何语句的执行结果不是 true，则整个脚本会立即退出。
+# set -u：在尝试使用未定义变量时，脚本会立即退出。
+# set -o pipefail：管道中的任何命令失败都会被捕获到，并返回最后一个非零退出状态。
+# set -euo pipefail
+
+readonly VERSION="1.3.1"
+
+snow_flakes_x=()
+snow_flakes_y=()
+
+readonly -a snow_flakes=("\u2743" "\u2744" "\u2745" "\u2746" "\u2747" "\u2748" "\u2729")
+
+# generate_random_true_color()
+# {
+
+#   local R=$((RANDOM % 256)) # 生成随机的 RGB 值
+#   local G=$((RANDOM % 256))
+#   local B=$((RANDOM % 256))
+
+#   echo -n -e "\e[38;2;${R};${G};${B}m" # 输出真彩色的 ANSI escape code
+# }
+
+generate_random_color()
+{
+  echo -n -e "\e[1;3$((RANDOM % 7 + 1))m"
+}
+
+readonly snowflake_per_line=2
+
+draw_snowflakes()
+{
+  clear
+
+  echo ${#snow_flakes_x[@]}
+
+  if ((${#snow_flakes_x[@]} / snowflake_per_line < height)); then
+    for _ in $(seq 1 "$snowflake_per_line"); do
+      snow_flakes_x+=($((RANDOM % width)))
+      snow_flakes_y+=(0)
+    done
+  fi
+
+  for ((i = 0; i < ${#snow_flakes_x[@]}; ++i)); do
+    tput cup "${snow_flakes_y[$i]}" "${snow_flakes_x[$i]}"
+    generate_random_color
+    echo -n -e "${snow_flakes[$((RANDOM % ${#snow_flakes[@]}))]}"
+
+    offset=$((RANDOM % 2))
+    if ((RANDOM % 2 == 0)); then
+      ((snow_flakes_x[i] -= offset))
+    else
+      ((snow_flakes_x[i] += offset))
+    fi
+
+    if ((snow_flakes_x[i] < 0 || snow_flakes_x[i] > width)); then
+      snow_flakes_x[i]=$((RANDOM % width))
+      snow_flakes_y[i]=0
+    fi
+
+    ((++snow_flakes_y[i]))
+
+    if ((snow_flakes_y[i] > height)); then
+      ((snow_flakes_x[i] = RANDOM % width))
+      snow_flakes_y[i]=0
+    fi
+
+  done
+
+}
+
+check_output_redirection()
+{
+  if ! [ -t 1 ]; then
+    output_target=$(readlink -f /proc/self/fd/1)
+
+    generate_random_color >&2
+    echo "主人，我的标准输出被重定向到 $output_target 啦 ✘>﹏<✘" >&2 # 输出到标准错误。>&2之间不能有空格
+
+    exit 1
+  fi
+}
+
+get_and_check_terminal_size()
+{
+  width=$(tput cols)
+  height=$(tput lines)
+
+  if ((width < 6 || height < 6)); then
+    generate_random_color
+    echo '主人, 终端放不下人家呢 ✘>﹏<✘'
+    exit 1
+  fi
+}
+
+handle_terminal_resize()
+{
+  clear
+
+  generate_random_color
+  echo '不要拽人家啦 ✘>﹏<✘'
+
+  sleep 2s
+
+  clear
+
+  get_and_check_terminal_size
+}
+
+cleanup()
+{
+  clear
+
+  generate_random_color
+
+  if ((RANDOM % 2)); then
+    echo -e "愿我们永远纯洁如雪. ✘╹◡╹✘"
+  else
+    echo -e "May we always be as pure as snow. ✘╹◡╹✘"
+  fi
+
+  script_name="${0##*[\\/]}"
+  script_name="${script_name%.sh}"
+  echo "$script_name Version: $VERSION"
+
+  tput cnorm
+  tput sgr0
+}
+
+check_output_redirection
+get_and_check_terminal_size
+
+tput civis # cursor invisible
+
+trap cleanup EXIT
+trap handle_terminal_resize SIGWINCH
+
+trap 'exit 0' INT # 收到这两个信号是正常退出，而不是被信号终止。
+trap 'exit 0' QUIT
+
+while true; do
+
+  draw_snowflakes
+
+  sleep 0.2
+
+done

@@ -1,0 +1,1821 @@
+#!/usr/bin/env bash
+
+function awk_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+awk是处理数据和生成报告的编程语言,支持自定义变量、数组、循环、函数。
+awk逐行读入输入数据,按指定的模式查找出匹配的行,对它们执行指定的操作。
+awk不会修改原文件的内容,可以用输出重定向将awk的处理结果保存到文件中。
+
+awk [选项] awk脚本 输入文件列表
+可以用\`-f\`选项指定存放awk脚本的文件, 如awk -F: -f test.awk /etc/passwd
+
+awk命令结构: 'awk 'BEGIN {动作} /模式1/{动作} /模式2/{动作} END {动作}' 输入文件'
+BEGIN块中的动作在处理任何输入行之前执行, 针对匹配模式1的每一行执行的动作, 针对匹配模式2的每一行执行的动作, END块中的动作在处理完所有输入行之后执行, 输入文件是awk处理的输入文件列表。
+awk按顺序处理输入文件列表中的每个文件, 逐行读取当前文件中的记录, 将读入的行分隔成若干字段。
+\$0代表整行, \$1代表第一个字段, \$2代表第二个字段, 以此类推.
+读入一行后, 执行begin actions, 而后执行与pattern匹配的actions, 最后执行end actions。
+
+-F选项用来指定分隔符。
+例如, awk -F '[ :]' '{print \$1}' test 以空格或冒号为分隔符
+
+pattern中可以出现:
+正则表达式
+关系运算 <  >  <=  >=  ==  !=
+匹配运算, ~为匹配, !~为不匹配
+逻辑运算&& || !
+
+| 正则元字符     | 说明                      |
+| ------------ | ----------------------- |
+| ^            | 匹配行首                   |
+| \$            | 匹配行尾                   |
+| *            | 匹配0个或多个前一字符         |
+| ?            | 匹配0个或1个前一字符          |
+| +            | 匹配1个或多个前一字符         |
+| .            | 匹配一个任意字符             |
+| [ ]          | 匹配[ ]中的任意字符          |
+| s1 | s2      | 匹配s1或s2                |
+| \            | 屏蔽元字符的特殊含义          |
+| ( )          | 分组                      |
+
+awk示例                                            | 说明
+-------------------------------------------------- | ----------------------------------------
+ifconfig | awk '/inet /{print \$2}                   | 打印ipv4地址
+awk 'awk '\$1 > 123 {print \$0}' test                 | 第一列大于123
+awk '\$1 !~ /^a/ {print \$0}' test                    | 第一列不以a开头
+awk '\$1 ~ /^a/ {print \$0}' test                     | 第一列以a开头
+awk '(\$1 > 231) && (\$2 ~ /.b./) {print \$0}' test    | 打印test文件中,第一个字段(列)的值大于231,并且第二个字段包含字母b的行
+awk '/^c/ && /c\$/ {print \$0}' test                   | 打印test文件中所有以字母c开头并且以字母c结尾的行
+
+awk '{print NR, \$0}' test                            | 为test文件添加行号, NR为表示行号的内置变量
+awk -F: '{print \$1}' /etc/passwd                     | 用冒号分隔密码文件, 打印第一列。
+awk -F: '{print \$1,\$3}' /etc/passwd                 | 打印第1列和第三列(username和uid)
+awk -F: '{print \$1 "|" \$3}' /etc/passwd             | 打印第一列和第三列, 之间用竖线分隔
+awk -F: '/root/{print \$1 "|" \$3}' /etc/passwd       | 只打印包含root的行
+awk -F: '/^root/{print \$1 "|" \$3}' /etc/passwd      | 只打印username以root开始的行
+awk '{print \$1, \$2 > "out.txt"}' test               | 将输出重定向到out.txt
+awk 'BEGIN {"cal" | getline date; print date}         | 调用cal命令获取日历, 再用awk的getline操作获取第一行, 保存到变量date中, 打印之
+EOF
+
+  echo -e '\033[0m'
+}
+
+function find_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+find在指定目录树下递归查找文件或目录。
+
+基本格式:
+find [路径...] [匹配条件...] [动作表达式]
+
+常用参数:
+-name [文件名] 查找与文件名匹配的文件。
+-iname [文件名] 查找与文件名匹配的文件, 忽略大小写。
+-type [类型] 查找特定类型的文件, 例如 f 表示普通文件, d 表示目录。
+-size [大小] 查找特定大小的文件, 例如 10M/-10M/+10M分别表示查找等于/小于/大于10MB的文件。
+-perm [权限] 查找具有特定权限的文件, 例如 644。
+-user [用户名] 查找属于特定用户的文件。
+-group [组名] 查找属于特定组的文件。
+-mtime [天数] 查找在指定天数内被修改过的文件。
+-atime [天数] 查找在指定天数内被访问过的文件。
+-ctime [天数] 查找在指定天数内被改变状态的文件。
+-exec [命令] {} \\; 对匹配的文件执行指定的命令。{}用来保存搜索到的文件, \\用来转义;
+-execdir [命令] {} \\; 在匹配文件所在的目录中执行指定的命令。
+-delete 删除匹配的文件。
+-maxdepth [层级] 限制查找的目录深度。
+-mindepth [层级] 指定最小的查找目录深度。
+-empty 查找空文件或目录。
+-newer [文件] 查找比指定文件更新的文件。
+-not [表达式] 查找不匹配表达式的文件。
+-or 结合两个表达式, 匹配任意一个表达式的文件。
+
+示例用法:
+查找当前目录及子目录下所有 '.txt' 文件, 忽略大小写:
+find . -iname '*.txt'
+
+查找当前目录及子目录下大于100M小于200M的文件:
+find . -size +100M -size -200M
+
+查找 /home 目录下所有属于用户 'alice' 的文件:
+find /home -user alice
+
+查找当前目录及子目录下最近7天内被修改过的 '.jpg' 文件:
+find . -type f -name '*.jpg' -mtime -7
+
+查找当前目录及子目录下所有空的子目录并删除它们:
+find . -type d -empty -delete
+
+查找当前目录及子目录下所有 '.sh' 文件并对每个文件执行 'chmod +x':
+find . -type f -name '*.sh' -print -exec chmod +x {} \;
+其中{} 是文件名的占位符, 将被实际找到的文件名所替换;反斜杠用于转义分号, 分号是命令的终止符
+
+查找当前目录及子目录下所有 备份文件, 并删除它们:
+find . -name '*.bak' -type f -print -exec rm {} \;
+
+递归地统计etc目录下含'telnet'文本的文件数目:
+find /etc -type f -exec grep -il 'telnet' {} \; | wc -l
+
+递归地打印当前目录下文件名以A(a)开头或结束的文件:
+find . \\( -name '[Aa]*' -o -name '*[Aa]' \)
+
+删除当前目录下所有非PDF文件:
+find . -type f ! -name '*.pdf' -exec rm -v {} \;
+EOF
+
+  echo -e '\033[0m'
+}
+
+function disk_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+----------------------------------------------------------------------------------
+层次结构:
+
+磁盘 (物理存储设备):一个物理存储设备,如硬盘、固态硬盘或闪存盘。
+分区 (逻辑分区):磁盘的逻辑分区,每个分区可以拥有自己的文件系统。
+文件系统 (组织结构):在分区上组织和存储文件的方式。例如 NTFS、ext4 和 HFS+。
+挂载 (文件系统实例):文件系统的一个实例,附加到操作系统文件系统层次结构中的特定目录。
+
+在 Windows 中,当你插入一个存储设备,如 USB 驱动器或硬盘时,
+操作系统会自动分配一个驱动器号(例如 C:、D:、E: 等) 来访问该设备上的文件系统。
+
+相比之下,Linux 不会自动分配驱动器号或挂载文件系统。
+你需要明确地将文件系统挂载到文件系统层次结构中的特定目录下,这个目录称为挂载点。
+你可以将文件系统挂载到文件系统层次结构中的任何目录下,从而允许你根据自己的需求组织文件和文件夹。
+
+----------------------------------------------------------------------------------
+分区的信息保存在分区表中。分区表格式有mbr(ms-dos)、gpt,它们是跨平台的
+
+mbr分区表中,存在主分区、扩展分区和逻辑分区
+    主分区:每个硬盘最多可以有4个主分区。主分区可以包含一个操作系统
+    扩展分区:不包含文件系统,是用来包含逻辑分区的容器
+    逻辑分区:为了创建更多的分区,可以将一个主分区划分为一个扩展分区,再将扩展分区划分为逻辑分区。逻辑分区可以包含文件系统,能被操作系统识别和访问
+
+GPT分区表中直接使用分区类型来标识分区的类型,如EFI分区、MSR分区(微软保留分区)
+
+查看分区
+    fdisk -l disk_name
+    lsblk disk_name
+
+修改分区(需要root权限)
+    fdisk disk_name (先创建分区表,再新建分区,最后保存)
+    parted
+
+在分区上建立文件系统 (格式化分区)
+    mkfs -t fs_type partition_name
+
+将格式化后的分区挂载到目录上
+    mount -t fs_type partition_name path
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function file_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+目录文件的权限:
+  读权限(r): 目录可以被浏览, 允许列出目录中的文件和子目录
+  写权限(w): 允许在目录中创建、删除和重命名文件和子目录
+  执行权限(x): 允许进入目录,也就是访问目录中的文件和子目录
+目录权限通常设置为755
+
+/tmp目录的权限是rwxrwxrwt,
+t为Sticky Bit,用于目录, 影响目录中文件的删除权限
+root外的用户只能删除目录中自己拥有的文件, 即使该目录对所有人都有写权限
+即: 只有文件的所有者和root用户才能删除或移动目录中的文件
+
+passwd命令的可执行文件的权限为 rws r-x r-x (通过ls -l $(which passwd)命令查看)
+s位 (SUID 位) 表示文件的所有者是 root, 任何用户执行此命令时,它会以 root 权限运行
+因此, 普通用户可以执行此命令来更改自己的密码
+
+----------------------------------------------------------------------------------
+使用ls命令查看设备文件时,不会显示size,而会显示主设备号和次设备号
+主设备号标识设备所属的驱动程序,不同类型的设备有不同的主设备号
+次设备号用于标识同一类型设备中的具体实例
+
+----------------------------------------------------------------------------------
+文件系统基础
+
+Linux 文件系统为每个文件分配一个唯一的索引节点 (inode) 号
+inode 存储文件的元数据, 如权限、所有者、大小、时间戳等, 但不包含文件名
+文件名和 inode 号的映射关系存储在目录项中
+
+硬链接
+硬链接是文件系统中的目录项, 指向同一个 inode
+创建硬链接不会生成新的 inode, 只是增加了一个指向现有 inode 的目录项
+所有硬链接都是平等的, 没有原始文件和链接文件的区别
+inode 的链接计数记录了指向它的硬链接数量, 只有当最后一个硬链接被删除时, 文件的数据才会被释放
+
+软链接(符号链接)
+软链接有自己的 inode 和数据块, 它存储了目标文件或目录的路径
+可以使用 readlink 命令查看软链接指向的路径
+
+           硬链接	                                  软链接
+inode 号   相同	                                      不同
+文件大小    相同                                       路径字符串的长度
+删除原文件  不影响                                      可能导致失效
+跨文件系统  不支持(因为 inode 号在不同文件系统中可能重复) )   支持
+链接到目录  不支持(防止文件系统形成环)                      支持
+
+硬链接可用于创建文件的备份或防止误删
+软链接常用于创建快捷方式或管理不同版本的文件/目录, 如维护不同版本的动态库
+硬链接共享相同的访问权限, 而软链接有自己的权限设置
+
+创建硬链接: ln 目标文件 链接名
+创建软链接: ln -s 目标文件或目录 链接名
+
+----------------------------------------------------------------------------------
+最初usr目录确实是用户家目录, 但现在是Unix System Resources目录
+
+----------------------------------------------------------------------------------
+stat filename 显示文件或文件系统的详细信息
+使用lsattr/chattr来查看/修改文件的其它特殊权限
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function gcc_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+GCC(GNU Compiler Collection) 是按照模块化设计的, 由前端、优化器、后端组成。
+前端用于解析特定语言的语法, 生成一种中间表示(IR) ;
+实现不同的前端后, GCC可以支持多种语言, 如C、C++、Fortran、Go等
+优化器对这种中间表示进行优化;
+后端则负责将优化后的IR转换为目标平台的机器代码.
+GCC能够进行跨平台交叉编译, 例如, 在x86架构的计算机上编译出ARM架构的程序。
+
+gcc编译c/c++程序的四个阶段:
+预处理(Preprocessing), 编译选项为-E, 生成.i (intermediate)文件
+编译(Compilation), 编译选项为-S, 生成.s  (assembly)文件
+汇编(Assembly), 编译选项为-c, 生成.o (object)文件
+链接(Linking), 生成可执行文件
+
+gcc -E -dM - < /dev/null 这个命令的作用是让 GCC 编译器预处理一个空的输入文件,并输出所有预定义的宏定义。
+-dM: 这个选项告诉编译器输出所有预定义的宏定义,包括编译器自身定义的宏和系统定义的宏。
+-: 这个连字符表示从标准输入读取源代码。
+
+编译时定义宏:
+#include <iostream>
+using namespace std;
+int main(){  cout << STR1 << STR2 << endl;  }
+g++ -D STR1='"hello, "' -D STR2='"world!"' test.cpp -o test
+
+调试选项:
+-g3: 向输出添加了更多的调试信息。 -g 和 -g3类似于-O 和 -O3
+
+优化选项:
+-O0 : 减少编译时间, 使调试产生预期的结果。这是默认的优化级别
+-O / -O1: 减少代码大小和执行时间, 编译需要消耗更多时间和内存
+-O2: 执行几乎所有支持的优化。进一步增加生成代码的性能, 但也会增加编译时间、
+-O3: 进一步优化
+-Os: 启用所有-O2优化, 但经常增加代码大小的优化除外
+-Oz: 积极优化尺寸而不是速度, 其行为类似于-Os, 包括启用大多数-O2优化
+-Ofast: 启用所有-O3优化, 还会启用违反标准的优化
+-Og: 优化调试体验。启用-O1优化, 但那些可能干扰调试的标志除外.调试代码时, 它是比-O0更好的选择, -O0可能会禁止编译器收集一些调试信息
+
+建议开启的警告:
+-Wall
+-Wextra
+-Wpedantic 有助于编写更加符合标准的、可移植的代码
+-Wparentheses 警告可疑的括号使用
+
+-Walloc-zero: malloc(0)、realloc(x, 0)
+-Wcast-qual 警告const属性丢失
+-Wconversion 警告可能更改值的隐式类型转换
+-Wdouble-promotion 当float被隐式提升为double时警告。在游戏开发中这会影响性能
+-Wduplicated-branches 警告重复的if分支
+-Wduplicated-cond 警告if链g中重复的条件
+-Wfloat-equal 警告直接的浮点数比较, 如 x == y  x == 3.14
+-Wformat=2 更严格地检查printf scanf的格式化字符串与实际参数不匹配
+-Wformat-signedness int x = -1; printf("%u", x);
+-Winit-self   int i = i;
+-Wlogical-op if (a < 0 && a < 0)
+-Wmissing-declarations 定义全局函数而没有前向声明
+-Wmissing-prototypes 要求完整的声明, int foo(int i); 而不是int foo();
+-Wpadded 结构体成员没有特意对齐, 编译器插入了填充字节
+-Wshadow 变量名与其他变量重名, 被隐藏
+-Wswitch-default switch语句没有default分支
+-Wswitch-enum enum有red, blue两项, 但switchg中只有red分支
+-Wundef 在 #if 指令中计算未定义的标识符
+-Wunused-macros
+-Wwrite-strings  char *x = "foobar" 因为x未显式声明为 const, 触发警告
+
+一个典型的g++命令行: g++ -Wall -std=c++20 source1.cpp source2.cpp -o program
+
+多文件编译示例:
+注意, 编译时需要指定头文件目录, 但是根据cpp文件就能编译出.o文件, 不依赖头文件。
+project
+├── include
+│   └── functions.h
+├── main.c
+└── src
+    └── functions.c
+
+gcc -c -I./include src/functions.c -o functions.o
+gcc -c -I./include main.c -o main.o
+gcc main.o functions.o -o project
+
+静态库:
+静态库通常以.a作为文件扩展名, 并且遵循lib<name>.a的命名规则, 其中<name>是库的名称。
+静态库可以包含多个目标文件(.o文件) , 并且可以通过ar命令(archive,归档)来创建。
+归档文件可以在文件管理器中打开, 打开后可以看到所有目标文件。
+首先, 编译每个源文件以生成目标文件:
+gcc -c file1.c -o file1.o
+gcc -c file2.c -o file2.o
+接下来, 将这些目标文件打包成example静态库:
+ar rcs libexample.a file1.o file2.o
+其中rcs表示replace, create, index——如果文件已经存在于静态库中, 则替换它; 如果静态库不存在, 则创建它; 创建索引, 加快链接时的速度
+在链接时使用example静态库:
+gcc main.o -L. -lexample -o program
+其中-L.表示在当前目录下查找静态库
+
+动态链接库:
+动态库通常以.so作为文件扩展名, 并且遵循lib<name>.so.<version>的命名规则, 其中<name>是库的基本名称, <version>是库的版本号。
+首先, 编译每个源文件以生成位置无关的目标文件:
+gcc -c -fPIC file1.c -o file1.o
+gcc -c -fPIC file2.c -o file2.o
+其中PIC表示position independent code , 即位置无关代码。
+创建动态库:
+gcc -shared file1.o file2.o -o libexample.so.1
+在链接时使用example动态库:
+gcc main.o -L. -lexample -o program
+
+当动态库和静态库中都存在同名的库时, 程序会优先使用动态库。
+系统共享库放在 /lib, /usr/lib等目录下。
+使用ldd 可执行文件名命令可以查看程序运行时所依赖的动态库, 以及这些动态库的路径。
+你可以静态链接动态库: g++ -static main.cpp -o static_executable
+
+总的来说, 动态链接允许程序共享动态链接库, 减少内存占用, 并且允许动态更新库文件。
+静态链接则将所有依赖打包进可执行文件, 使得程序更加独立和可移植。
+
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function gdb_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+gdb (GNU symbolic debugger) 是通过linux下ptrace系统调用实现的调试器, 支持远程调试。
+被调试的可执行文件必须加上-g选项编译, 否则会提示No debugging symbols found in executable file
+
+调试可执行文件: gdb exe_file
+调试进程: gdb attach pid (进程会暂停执行; 退出前需要detach)
+调试core dump文件: gdb exe_file corefile (执行ulimit -c unlimited以允许生成core文件)
+
++------------------------+-------------------------------------------------------------+
+| 命令                   | 描述                                                         |
++------------------------+-------------------------------------------------------------+
+| 回车                   | 执行上一条命令                                               |
+| shell command-string/!command-string | 在gdb中执行shell命令                         |
+
+| break/b line           | 在当前文件的line行添加断点                                   |
+| break/b file:line      | 在指定文件的line行添加断点                                   |
+| break/b func           | 在函数入口处添加断点,  如break Class::func()   break overloaded_function(args) |
+| break/b file func      | 在指定文件的指定函数入口处添加断点                           |
+| break/b -/+ offset     | 在当前程序暂停位置的前/后 offset 行上添加断点                |
+| break/b if cond        | 条件断点, 如 break if i == 10   break func() if ptr == 0    |
+| tbreak/tb              | 添加临时断点。断点触发后自动删除                             |
+
+| info break/i b         | 列出所有的断点及其编号                                       |
+| delete num             | 删除编号为num的断点                                          |
+| enable num             | 启用编号为num的断点                                          |
+| disable num            | 禁用编号为num的断点                                          |
+
+| next/n                 | step over, 执行下一行,不会进入函数内部                       |
+| step/s                 | step into, 执行下一行,会进入函数内部                         |
+| return val             | 不管当前函数是否执行完, 立刻返回, 可以指定返回值             |
+| finish                 | 执行完当前函数                                               |
+| continue/c             | 运行到下一个断点处                                           |
+| until line             | 运行到指定行后停下来                                         |
+| jump/j line/*addr      | 跳转到指定行或地址后, 继续执行。跳过的代码不会被执行         |
+
+| backtrace/bt           | 查看当前的函数调用栈。栈中的元素称为帧。该命令会帧的编号     |
+| frame/f num            | 切换到编号为num的帧                                          |
+
+| print/p var            | 查看变量或寄存器的值, 如 print i、print &i、print abs(i)+3  |
+| print/p var=i          | 设置变量或寄存器的值, 如print obj.member = value             |
+| print/p expr           | 查看表达式的值, 如 print a+b+c                              |
+| print/p func()         | 查看函数的执行结果, 如 print strerror(errno)  print arr.resize($1 + 3), $1表示当前帧的第一个参数 |
+| print/p this           | 查看this指针的值                                            |
+| print/p *this          | 查看当前对象的值                                            |
+| ptype val              | 查看变量类型                                                |
+
+| watch expr/*ptr        | 设置观察点。一旦expr的值发生改变, 就会暂停程序。如 watch global_var if global_var >= 2 |
+| awatch rwatch          | access watch, read watch                                    |
+| info watch             | 查看所有观察点                                              |
+| delete watch num       | 删除指定编号的观察点                                        |
+
+| info thread            | 显示所有线程的运行情况                                      |
+| thread num             | 切换到指定编号的线程                                        |
+
+| list/l                 | 显示源代码                                                  |
+| list/l line            | 显示源代码                                                  |
+| list/l file:line       | 显示源代码                                                  |
+| list/l func            | 显示源代码                                                  |
+| list/l file:func       | 显示源代码                                                  |
+| list/l fromline,toline | 显示源代码                                                  |
+| show listsize          | 查看 list 命令显示的代码行数                                |
+| set listsize count     | 设置 list 命令显示的代码行数                                |
+
+| disassemble/dis        | 查看汇编代码                                                |
+
+| set logging file <filename> | 临时输出到文件                                         |
+| set logging overwrite [on | off] | 设置日志覆盖模式                                  |
+| set logging redirect [on | off] | 设置日志重定向模式                                 |
+| set logging on         | 开启日志记录                                               |
+| set logging off        | 关闭日志记录                                               |
+| show logging           | 显示日志记录状态                                           |
+| save breakpoints temp.gdb    source temp.gdb | 保存/加载断点                        |
+
+| set follow-fork-mode child | 在多进程调试时追踪子进程                                |
+| set follow-fork-mode parent | 在多进程调试时追踪父进程 (默认)                        |
+
+| set args               | 设置程序的命令行参数                                        |
+| show args              | 查看程序的命令行参数                                        |
+| run/r arg1 arg2 ...    | 运行程序, 会执行到第一个断点处。可以传递程序的命令行参数    |
+| start arg1 arg2 ...    | 准备执行main函数。可以传递程序的命令行参数                  |
+| quit/q                 | 退出GDB                                                     |
+EOF
+
+  echo -e '\033[0m'
+}
+
+function git_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+git仓库是由对象和引用组成的。
+
+对象:
+    Blob(Binary Large Object): 以二进制存储文件内容。
+    Tree: 表示目录结构。每个Tree对象可以包含多个条目,每个条目可以是指向Blob对象(文件)或其他Tree对象(子目录)的引用。Tree还保存了每个条目的类型(blob还是tree)、文件名、权限。
+    Commit: 记录一次提交的信息。每个Commit对象包含指向一个Tree对象的引用、提交的元数据(如作者、时间戳、提交信息等)。每个Commit对象都包含一个指向其父Commit对象的引用,构成了有向无环图(DAG)。每次创建新的提交时,会创建新的Commit对象,新的Commit对象指向新的Tree对象,而新的Tree对象又会指向新的Blob对象。如果文件没有被修改,会引用已有的Blob对象。
+
+对象的保存:
+保存在.git/objects/目录下。
+计算出对象的40位SHA-1哈希值,将前两位作为目录名,后38位作为文件名,将对象的内容保存在这个文件中。
+把每个对象都放到一个单独目录的原因是,避免单个目录下的文件数量过多导致性能下降。
+
+引用:
+分支就是指向Commit对象的引用。
+
+引用的保存:
+.git/refs目录下保存了引用文件,文件名是引用的名称,文件内容是一个SHA-1哈希值,代表指向的Git对象。
+    分支引用：存储在.git/refs/heads/目录下,每个分支都有一个对应的文件。例如,refs/heads/feature-branch文件对应于feature-branch分支。
+    远程跟踪分支引用：存储在.git/refs/remotes/目录下。refs/remotes/origin/main指向远程origin的main分支的最新提交。
+    标签(tag)引用：存储在.git/refs/tags/目录下。refs/tags/v1.0文件对应于v1.0标签。
+
+HEAD:
+默认情况下和执行git switch main, HEAD指向main, main又指向最新的提交。
+执行git switch -d branch (或git checkout hash), 其中-d表示detach, 此时HEAD直接指向提交。
+如果你在"detached HEAD"状态下又进行了commit,并希望保留这些提交,就得创建新的引用指向它们,即创建一个新的分支并将其指向当前的提交: git branch new_name commit-hash。
+
+
+
+
+
+
+查看所有分支 git branch -a
+查看远程仓库的所有分支 git branch -r
+
+建立dev分支 git branch dev
+删除dev分支 git branch -d dev
+主分支合并dev分支 git switch main, git merge dev
+
+将dev分支推送到远程 git push -u origin dev, -u选项的存在会使得 Git 设置上游分支
+删除远程仓库的dev分支 git push origin :dev
+
+给main分支打tag git tag -a 0.1 -m "release for init" main, -a 的全称是 --annotate, 表示创建一个带注释的tag
+把tag提交到远程 git push --tags
+
+如果你当前在 feature 分支上, 并且远程仓库的默认分支是 main, 那么 git push 就会将当前的 feature 分支推送到远程仓库的 feature 分支中, 而不是 main 分支。如果你想要推送 main 分支, 需要使用 git push origin main 命令。
+
+git fetch, git merge, git pull
+
+初始状态:
+C0 ← C1 ← C2 (master)
+      ↘
+       F1 ← F2 (feature)
+
+1.在master分支上执行git merge feature:
+C0 ← C1 ← C2 ← M (master)
+      ↘       ↗
+       F1 ← F2 (feature)
+
+2.在feature分支上执行git rebase master,切换到master分支,执行git merge feature:
+C0 ← C1 ← C2 ← F1' ← F2' (master, feature)
+
+3.切换到master分支,执行git merge --squash feature,git commit -m "Squash合并feature分支"
+           S (新生成的Squash提交)
+          /
+C0 ← C1 ← C2 (原master)
+      ↘
+       F1 ← F2 (feature分支仍保留)
+
+
+origin是远程仓库的默认别名,类似于一个“快捷方式”,你可以重命名或删除它(但不建议)。
+EOF
+
+  echo -e '\033[0m'
+}
+
+function grep_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+general regular expression parser, 使用正则表达式查找文件中的模式。
+grep [选项] [模式(用单引号包裹)] [文件...]
+
+常用的 grep 命令参数:
+-i                  忽略大小写匹配。
+-v                  反转匹配, 选择不匹配的行。
+-c                  计数匹配行的数量。
+-n                  显示匹配行及其行号。
+-l                  仅显示包含匹配的文件名。
+-L                  仅显示不包含匹配的文件名。
+-r 或 -R            递归搜索目录。
+-w                  仅匹配整个单词。
+-x                  仅匹配整行。
+-a,                 将所有输入文件当作文本文件处理, 即使它们包含二进制数据。
+-q                  静默模式, 不输出任何匹配行。找到/未找到匹配的文本时, 退出状态为0/1。
+-E                  使用扩展正则表达式。
+-F                  将模式作为固定字符串处理, 不解释任何正则表达式。
+-A [行数]            打印匹配行和之后的指定行数。
+-B [行数]            打印匹配行和之前的指定行数。
+-C [行数]            打印匹配行的前后指定行数。
+--color=auto        匹配文本着色显示。
+
+示例用法:
+在文件 'file.txt' 中搜索 空行:
+grep '^$' file.txt
+
+不显示配置文件的注释行:
+grep -v '^#' conf
+
+在当前目录及子目录中搜索包含 'pattern' 的文件:
+grep -r 'pattern' .
+
+在文件 'file.txt' 中忽略大小写地搜索 'pattern':
+grep -i 'pattern' file.txt
+
+计算文件 'file.txt' 中 'pattern' 出现的次数:
+grep -c 'pattern' file.txt
+
+在文件 'file.txt' 中搜索 'pattern', 并显示行号:
+grep -n 'pattern' file.txt
+
+在多个文件中搜索 'pattern', 仅显示包含匹配的文件名:
+grep -l 'pattern' file1.txt file2.txt
+
+EOF
+
+  cat << EOF
+
+常用的正则表达式元字符:
+
+^        匹配行的开始。例如, '^grep' 匹配所有以 'grep' 开头的行.
+$        匹配行的结束。例如, 'grep$' 匹配所有以 'grep' 结尾的行.
+.        匹配任意单个字符(除了换行符) .
+*        匹配前一个字符零次或多次。例如, 'gre*p' 匹配 'gp'、'grep'、'greeep' 等.
+[]       匹配括号内的任意字符集合。例如, 'gr[ae]p' 匹配 'grep' 或 'grap'.
+[^]      匹配不在括号内的任意字符集合。例如, 'gr[^ae]p' 匹配 'grxp' 但不匹配 'grep' 或 'grap'.
+\<       匹配单词的开始。例如, '\<grep' 匹配所有以 'grep' 作为独立单词开始的行.
+\>       匹配单词的末尾。例如, 'grep\>' 匹配所有以 'grep' 作为独立单词结束的行.
+[a-b]    匹配a到b之间的任意单个字符(包括a和b) .
+\        转义字符, 用于匹配特殊字符。例如, '\.' 会匹配实际的点字符.
+
+扩展正则表达式元字符(使用 'grep -E' 或 'egrep') :
+
++        匹配前一个字符一次或多次。例如, 'gre+p' 匹配 'grep'、'greeep' 但不匹配 'gp'.
+?        匹配前一个字符零次或一次。例如, 'gre?p' 匹配 'gp' 或 'grep' 但不匹配 'greeep'.
+|        逻辑或操作。例如, 'grep|egrep' 匹配 'grep' 或 'egrep'.
+()       分组。例如, '(gr|e)rep' 匹配 'grep' 或 'erep'.
+{}       匹配前一个字符的指定次数。例如, 'gre{2}p' 匹配 'greeep' 但不匹配 'grep'.
+{j,}     匹配前一个字符至少j次.
+{,k}     匹配前一个字符最多k次.
+{j,k}    匹配前一个字符至少j次, 但不超过k次.
+\b       单词边界。例如, '\bgrep\b' 匹配 'grep' 但不匹配 'egrep'.
+EOF
+
+  echo -e '\033[0m'
+}
+
+function shell_keybindings
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+bash的键绑定默认为emacs风格, 如下所示:
+(您可以使用 set -o vi切换键绑定为vi风格)
+
+ctrl-a 将光标移动到行首
+ctrl-e 将光标移动到行尾
+
+ctrl-u 清空当前行
+ctrl-k 删除光标后的所有字符
+
+ctrl-h 删除光标前的一个字符
+ctrl-d 删除光标后的一个字符
+
+ctrl-w 删除前一个单词
+alt-d 删除下一个单词
+
+ctrl-b 将光标向前移动一个字符(back)
+ctrl-f 将光标向后移动一个字符(forward)
+alt-b 将光标向前移动一个单词(back)
+alt-f 将光标向后移动一个单词(forward)
+
+alt-l 将光标后的所有字符转换为小写
+alt-u 将光标后的所有字符转换为大写
+
+alt-. 上一条命令的最后一个参数, 相当于!$
+EOF
+
+}
+
+function less_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+man和less等命令,在浏览文件内容时,有以下快捷键:
+/pattern - 搜索pattern
+n - 查找下一个匹配项
+N - 查找上一个匹配项
+g - 移动到文件头
+G - 移动到文件尾
+b / Page UP 向上翻滚一页
+space / Page Down 向下翻滚一页
+回车 向下滚动一行
+EOF
+
+  echo -e '\033[0m'
+}
+
+function make_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+Make工具自动完成编译工作, 仅重新编译修改的源文件。通过Makefile文件描述编译、链接规则。
+
+基本规则:
+target : dependencies
+    command
+
+- "command"前必须有tab字符。
+- "dependencies"更新时, "command"执行生成"target"。
+
+示例Makefile:
+.PHONY: clean
+OBJECTS=main.o add.o sub.o
+main: \$(OBJECTS)
+    gcc \$^ -o \$@
+main.o: main.c
+    gcc -c \$< -o \$@
+add.o: add.c add.h
+    gcc -c \$< -o \$@
+sub.o: sub.c sub.h
+    gcc -c \$< -o \$@
+clean:
+    rm -f main \$(OBJECTS)
+
+变量和特殊符号:
+- \$@ 目标文件名
+- \$< 第一个依赖文件名
+- \$^ 所有依赖文件列表
+
+多个可执行文件:
+.PHONY: all clean
+CC=gcc
+CFLAGS=-Wall -g
+BIN=main1 main2
+all: \$(BIN)
+%.o:%.c
+    \$(CC) \$(CFLAGS) -c \$< -o \$@
+main1: main1.o
+    \$(CC) \$(CFLAGS) \$^ -o \$@
+main2: main2.o
+    \$(CC) \$(CFLAGS) \$^ -o \$@
+clean:
+    rm -f *.o \$(BIN)
+
+内嵌函数:
+- \$(wildcard PATTERN) 获取特定文件
+- \$(patsubst PATTERN, REPLACEMENT, TEXT) 模式替换
+- \$(shell COMMAND) 执行shell命令
+
+多级目录编译示例:
+CC=gcc
+CFLAGS=-Wall -g
+BIN=main
+ROOTSRC=\$(wildcard *.c)
+ROOTOBJ=\$(ROOTSRC:%.c=%.o)
+SUBDIR=\$(shell ls -d */)
+SUBSRC=\$(shell find \$(SUBDIR) -name '*.c')
+SUBOBJ=\$(SUBSRC:%.c=%.o)
+\$(BIN):\$(ROOTOBJ) \$(SUBOBJ)
+    \$(CC) \$(CFLAGS) \$(ROOTOBJ) \$(SUBOBJ) -o \$(BIN)
+.c.o:
+    \$(CC) \$(CFLAGS) -c \$< -o \$@
+clean:
+    rm -f \$(BIN) \$(ROOTOBJ) \$(SUBOBJ)
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function markdown_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+Markdown 语法指南:
+
+换行: 在上一行的末尾添加两个空格
+
+标题: 使用多个井号表示不同级别的标题, 例如 # 一级标题
+
+加粗: 使用两个星号或下划线包围文字, 例如 **加粗** 或 __加粗__
+
+斜体: 使用一个星号或下划线包围文字, 例如 *斜体* 或 _斜体_
+
+删除线: 使用两个波浪线包围文字, 例如 ~~删除线~~
+
+分割线: 在单独的一行上, 使用三个或更多的星号或减号, 例如 --- 或 ***
+
+下划线:  Markdown 本身不直接支持下划线, 但可以通过 HTML 标签实现, 例如 <u>下划线</u>
+
+列表: 无序列表使用星号、加号或减号, 有序列表使用数字加点, 例如 - 无序列表项
+嵌套列表: 通过增加缩进(2个空格)实现, 例如
+  - 一级列表项
+    - 二级列表项
+退出列表: 在列表后添加一行空行
+
+勾选框: 在列表项前添加 [ ] 或 [x] (没有或有x表示未选中或选中), 例如 - [x] 已完成
+
+行内代码: $(这是一段行内代码)
+
+代码块: 使用三个反引号包围代码, 可以指定语言, 例如
+```bash
+ echo "Hello World"
+```
+
+引用: 使用大于号, 例如 > 这是一个引用
+退出引用: 在引用后添加一行空行
+
+链接和图片: 链接使用 [链接文字](URL) , 图片使用 ![替代文字](图片URL), 例如 [Google](https://google.com)
+
+脚注: 使用脚注标记 [^], 然后在文档的其他地方定义脚注, 例如 带脚注[^1]的文本 [^1]: 脚注的内容
+
+表格: 使用竖线和减号定义表格, 例如
+| 左对齐 | 居中 | 右对齐 |
+|:-------|:----:|-------:|
+| 单元格 | 单元格 | 单元格 |
+| 单元格 | 单元格 | 单元格 |
+
+-----------------------------------------------------------------------
+
+Markdown 中的数学公式语法指南:
+
+公式行: 使用一个美元符号将公式包围, 例如 $公式$
+
+公式块: 使用两个美元符号将公式包围, 例如  $$公式$$
+
+比较大小: 使用 >, <, \geq, \leq 表示, 例如
+  $$x > y, x < y, x \geq y, x \leq y$$
+
+乘除号: 使用 \times, \div 表示, 例如
+  $$x \times y, \frac{x}{y}$$
+
+累乘(乘积) : 使用 \prod 表示, 例如
+  $$\prod_{i=1}^{n} x_i$$
+
+平均值: 使用 \overline 表示, 例如
+  $$\overline{x} = \frac{1}{n} \sum_{i=1}^{n} x_i$$
+
+对数: 使用 \log 表示, 例如
+  $$\log(x), \ln(x)$$
+
+三角函数: 使用 \sin, \cos, \tan 表示, 例如
+  $$\sin(x), \cos(x), \tan(x)$$
+
+集合: 使用 \{ 和 \} 表示, 例如
+  $$\{x | x > 0\}$$
+
+特殊符号: 例如无穷大 \infty, 属于 \in, 不属于 \notin, 空集 \emptyset, 等等。
+  $$x \in \mathbb{R}, \emptyset, x \notin \emptyset$$
+
+特殊数学符号: 例如希腊字母
+  $$\alpha, \beta, \gamma, \sigma, \delta$$
+
+分数: 使用 \frac{分子}{分母}, 例如
+  $$\frac{a}{b}$$
+
+开方: 使用 \sqrt{表达式}, 例如
+  $$\sqrt{x}, \sqrt[n]{x}$$
+
+上下标: 上标使用 ^, 下标使用 _, 如果上标或下标内容多于一个字符, 需要使用 {} 括起来。例如
+  $$x^2, x_i, E=mc^2$$
+
+积分: 使用 \int_{下限}^{上限}, 例如
+  $$\int_{a}^{b} x^2 dx$$
+
+极限: 使用 \lim_{趋近值} 表达式, 例如
+  $$\lim_{x \to \infty} \frac{1}{x}$$
+
+向量: 使用 \vec{向量}, 例如
+  $$\vec{v} = x\vec{i} + y\vec{j}$$
+
+省略号: 使用 \ldots(靠下面) 和 \cdots(靠中间) , 例如
+  $$1, 2, \ldots, n$$
+  $$x_1 + x_2 + \cdots + x_n$$
+
+点乘: 使用 \cdot, 例如
+  $$a \cdot b$$
+
+累加: 使用 \sum_{下限}^{上限} 表达式, 例如
+  $$\sum_{i=1}^{n} i^2$$
+
+矩阵: 使用 \begin{matrix} 和 \end{matrix}, 并用 & 分隔列, \\ 分隔行, 例如
+  $$\begin{matrix} a & b \\ c & d \end{matrix}$$
+EOF
+
+  echo -e '\033[0m'
+}
+
+function monitoring_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+## 内存监控
+pmap: 显示进程的内存映射
+vmstat: 报告虚拟内存统计信息
+
+## 网络监控
+ip addr: 显示 IP 地址和网络接口
+ss: 替代较旧的 netstat 命令 (socket statistics)
+iftop: 按主机显示接口上的带宽使用情况
+
+## 进程监控
+lsof: 列出打开的文件 (list open files)
+lsof | grep LISTEN: 列出打开的文件, 过滤只显示监听端口
+
+## I/O 监控
+iotop: 监控进程的 I/O 使用情况
+
+## 系统信息
+curl ipinfo.io: 获取公共 IP 地址和位置信息
+
+## 磁盘使用
+df: 报告文件系统磁盘空间使用情况
+du: 估算文件空间使用情况
+
+dmidecode: 获取系统硬件信息
+
+注意: 运行大多数这些命令时需要使用 sudo 以获取完整信息。
+EOF
+
+  echo -e '\033[0m'
+}
+
+function pacman_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+ sudo pacman -Syu     同步包数据库, 更新包 (sync upgrade)
+ sudo pacman -Syyu    刷新包数据库, 同步包数据库, 更新包 (sync refresh upgrade)
+ sudo pacman -Rsn     移除包和它的依赖、它的配置文件 (REMOVE OPTIONS, --recursive,  --nosave)
+ sudo pacman -U       从本地文件安装包 (upgrade)
+ pacman -Ss           在包数据库中搜索包 (synchronize search)
+ pacman -Si           显示包数据库中, 包的信息 (query information)
+ sudo pacman -Sc      删除缓存的软件包和未用的同步仓库, 会保留元数据 (synchronize clean)
+ sudo pacman -Scc     删除缓存的软件包和未用的同步仓库 (synchronize clean cache)
+ pacman -Qi           显示本地包的信息 (query installed)
+ pacman -Qe           查询用户主动安装的包 (query explicit); 加上q参数后, 不显示包的版本等信息
+ pacman -Q            查找本地包 (只显示版本)
+ pacman -Qs           查找本地包 (query search)(显示详细信息)
+ pacman -Qn           查找从官方仓库安装的包
+ pacman -Qm           查找从aur安装的包 (query foreign)
+ sudo pacman -Qdt     列出所有孤儿包 (query dangling topologies)
+ sudo pacman -Rs \$(pacman -Qtdq)  删除所有孤儿包
+ pacman -Ql           显示已安装包的文件列表 (query list)
+ pacman -Qo           查询指定文件或目录属于哪个已安装包 (query own)
+ pacman -F cmd_name   查询某个命令属于哪个包
+ yay -Ps              显示统计信息
+ yay -Yc              删除不需要的依赖
+ /etc/pacman.conf     pacman配置文件目录
+ /var/cache/pacman/pkg/  pacman缓存目录
+ /var/lib/pacman/     pacman数据库目录
+EOF
+
+  echo -e '\033[0m'
+}
+
+function ps_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+ps显示当前终端(模拟器)中的进程, 包括后台进程组中的进程。
+
+如果 ps 命令显示的进程名称被方括号 [] 包围, 表示它是一个内核线程。
+
+ps aux: BSD风格,显示cpu和内存使用率。
+STAT列:
+    D (Disk Sleep): 不可中断的睡眠状态,通常是在等待I/O操作完成。
+    I (Idle): 空闲内核进程。
+    R (Running): 进程正在运行或位于运行队列中准备运行。
+    S (Sleeping): 进程正在睡眠状态,等待某些条件发生,比如等待输入/输出完成或接收信号。
+    STAT列显示进程状态。
+    T (Stopped): 进程由于收到作业控制信号而停止。
+    t (Tracing): 进程正在被跟踪或调试。
+    X (Dead): 已经死亡的进程。
+    Z (Zombie): 僵尸进程,进程已经终止,但父进程还未收割它。
+
+    < (高优先级): 该进程的优先级较高,不太友好地占用了更多资源。
+    N (低优先级): 该进程的优先级较低,对其他用户更加友好。
+    L (锁定页面): 该进程的部分页面被锁定在内存中,通常用于实时应用程序和自定义IO操作。
+    s (会话领导者): 该进程是一个会话的领导进程。
+    l (多线程): 该进程是一个多线程进程,使用了CLONE_THREAD标志,如NPTL pthreads所做的那样。
+    + (前台进程组): 该进程属于前台进程组,可以接收来自终端的输入。
+
+
+ps -ef: Unix风格, 显示ppid、C(进程的CPU占用率)
+
+ps axjf: 显示进程之间的关系
+PPID - 父进程ID
+PID - 进程ID
+PGID - 进程组ID
+SID - 会话ID
+TTY - 进程关联的终端
+TPGID - 前台进程组ID, 对于有控制终端的前台进程,TPGID等于PGID(进程组ID); 对于没有控制终端的进程,比如大多数守护进程、内核线程等,TPGID显示为-1
+STAT - 进程状态码
+UID - 进程所有者的用户ID
+TIME - CPU时间
+COMMAND - 命令名称和参数
+
+ps -eo pid,ppid,pgrp,sid,tty,stat,comm,cmd: 显示进程所属的进程组和会话组
+
+ps -o pid,psr,cmd: 显示进程在哪个处理器上运行
+
+更多和进程相关的命令:
+    pidof  基于进程名来查找进程ID
+    pgrep -l -a  基于进程名、用户名、进程ID等来查找进程ID
+    kill [-signal] PID...  给进程发送信号, 默认发送TERM信号
+        冷知识: top 和 less 会响应WINCH信号,按照新窗口的尺寸,刷新显示的内容
+    killall [-u user] [-signal] name...  给匹配程序名或用户名的多个进程发送信号
+    pstree  输出一个树型结构的进程列表
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function sed_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+sed(stream editor) 是一个非交互式的(非所见即所得) 流式编辑器
+sed 逐行读取文件内容(不会修改源文件的内容, 可加上-i参数以原地修改)
+存储在称为 pattern space 的临时缓冲区中, 处理缓冲区中的内容并将结果打印到屏幕
+sed常用于在命令行中进行查找和替换操作
+
+sed [选项]... {sed 脚本} [输入文件]...
+
+sed脚本由单引号包裹,可以指定被编辑的行和要进行的操作。
+
+执行多条sed编辑命令:
+- 用分号分隔sed编辑命令   sed 's/a/A/;s/b/B/' test
+- sed编辑命令前添加-e选项    sed -e 's/a/A/' -e 's/e/E/' test
+- 在sed后输入单引号,输入换行符,启用多行编辑命令   sed '
+s/a/A/
+s/e/E/' test
+
+从文件读取sed脚本: 用-f选项指定存放sed脚本的文件, 如sed -f test.sed test
+
+| 指定行的方式          | 说明                           |
+| --------------------- | ------------------------------ |
+| m                     | 第m行                          |
+| m,n                   | 从m行到n行                     |
+| $                     | 最后一行                       |
+| /pattern/             | 包含指定模式的行               |
+| /pattern/,m           | 从包含指定模式的行到第m行      |
+| m,/pattern/           | 从第m行到包含指定模式的行      |
+| /pattern1/,/pattern2/ | 从包含模式1的行到包含模式2的行 |
+| !                     | 反向选择                       |
+
+| 操作 | 说明                                                         |
+| ---- | ------------------------------------------------------------ |
+| p    | 打印匹配行                                                   |
+| l    | 打印匹配行,并显示控制字符                                   |
+| =    | 显示匹配行的行号                                             |
+| d    | 删除匹配行                                                   |
+| a\   | 在指定行后追加行                                             |
+| i\   | 在指定行前插入行                                             |
+| c\   | 用新行替换指定行                                             |
+| s    | 替换命令。 s/old/new/[gpw],g为全部替换,p为打印替换后的行,w将替换后的行写入指定文件 |
+| r    | 读文件。sed '\$r test2' test将test2文件追加到test文件的末尾。 |
+| w    | 写文件。sed '/a/w test2' test将test文件中包含a的行写入到test2中。 |
+| n    | 将指定行的下一行读入缓冲区。sed '/hello/{n;s/a/A/}' test 将 含有hello行的下一行,中的第一个a替换为A |
+
++----------------------------------+------------------------------------------------+
+| sed示例                          | 说明                                           |
++----------------------------------+------------------------------------------------+
+| sed '/^$/d'                | 删除空行 |
+| sed '4,\$d' test                | 删除test文件的第四行到最后一行,即只输出前三行 |
+| sed '3/foo/d' test                | 删除第3行,如果它包含 foo |
+| sed '3q' test                  | 处理完第三行时退出                             |
+| sed 's/a/A/' test              | 将每行的第一个a替换为A                         |
+| sed 's/a/A/i' test              | 不考虑大小写                         |
+| sed 's/a/A/2' test              | 只替换第二次出现的内容                         |
+| sed 's/a/A/g' test             | 将每行的所有a替换为A                           |
+| sed 's/a/A/gw test2' test      | 将替换后的行输出到test2文件中                  |
+| sed -n 's/a/A/p' test          | 只输出含有a的行,且将每行的第一个a替换为A      |
+| sed  -n '3,6p' test            | 打印第三行到第六行                             |
+| sed -n '3,6!p' test            | 打印除了第三行到第六行外的行                   |
+| sed  '/e/a\EEE' test           | 在包含e的行后追加EEE行                         |
+| sed 's/[0-9][0-9]\$/&.0/' test  | 将连续的两两位数后面加上.0                      |
++----------------------------------+------------------------------------------------+
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function shell_script_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+shell 脚本是由 Shell 内部命令、能在命令行上运行的命令、控制语句及注释(以#开始的行)构成的纯文本文件,
+以.sh 作为文件后缀名, 能够被 Shell 程序解释执行。
+
+脚本的第一行#!/bin/bash是shebag:  它指示使用什么解释器来运行脚本。
+如果第一行没有给出shebang, 则脚本被当前的shell解释。脚本可以由 shell 外的解释器(如 Python) 运行。
+运行脚本时, 将启动新的解释器实例, 并将脚本作为参数传给解释器实例, 不会在当前shell中执行。
+
+
+command1 && command2: command1执行成功后, 才会执行command2
+command1 || command2: 如果command1执行失败, 则执行command2
+例如, DEBUG=true; $DEBUG && Something happening
+
+在 Shell 中,通配符(wildcards)用于匹配文件名或目录名
+通配符只在未被引用时才会生效。如果将通配符放在单引号或双引号中,它们将被视为普通字符
+常见的通配符及其用法:
+* (星号)
+  - 匹配任意长度(包括0个)的任意字符
+  - 例如: *.txt 匹配所有扩展名为 .txt 的文件
+? (问号)
+  - 匹配任意单个字符
+  - 例如: file?.txt 匹配 file1.txt、file2.txt 等
+[ ] (方括号)
+  - 匹配方括号内的任意一个字符
+  - 例如: file[12].txt 匹配 file1.txt 和 file2.txt
+  - 可以使用连字符 (-) 表示范围,如 [a-z] 匹配任意小写字母
+  - 也可以使用感叹号 (!) 表示否定,如 [!0-9] 匹配任意非数字字符
+
+
+例子: 根据用户输入的 y、yes、n 或 no 执行不同的命令
+case $var in
+    [yY] | [yY][eE][sS])
+    command...
+    ;;
+    [nN] | [nN][oO])
+    command...
+    ;;
+    *)
+    ;;
+esac
+
+{ } (大括号)
+  - 匹配大括号内的任意一个字符串
+  - 例如: file{1,2}.txt 匹配 file1.txt 和 file2.txt
+  - 也可以使用范围表示法,如 file{1..5}.txt 匹配 file1.txt 到 file5.txt
+  - 例如: 创建一系列文件夹 mkdir {2007..2009}-0{1..9} {2007..2009}-{10..12}
+~ (波浪号)
+  - 仅在某些 Shell 中有效,用于匹配用户的主目录
+  - ~user_name会展开成指定用户的家目录名, ~会展开为当前用户的家目录
+
+
+在 Shell 程序中可以定义变量, 如 A=2023, 赋值号两边不能有空格
+通过 unset 命令删除变量, 通过 set 内建命令查看所有的变量
+除了函数中的local变量外, shell中的变量均为全局变量。
+变量名大小写敏感, 必须以字母或下划线开头, 后续可以包含数字、字母、下划线
+被 readonly 修饰的变量为只读变量, 不能被修改和 unset, 如readonly A=2021
+变量引用时可以使用 $变量名 或 ${变量名}, 后者可以避免歧义
+
+上述变量只能在创建它们的 shell 脚本中使用, 而环境变量(即全局变量)可以在 Shell 中的所有用户进程中使用
+你可以用printenv、printenv key 命令来查看所有/指定的环境变量
+定义环境变量 A: A=2023; export A 或 export A=2023
+常用内置变量: $USER, $UID, $HOME, $PWD, $PATH,  $SHELL, $RANDOM
+
+
+Shell将变量视为字符串而不是数字。Shell不支持浮点数运算。
+Shell 支持以下整数运算:
+ ** 幂运算, % 取余数
+ +, -, *, / 基本算术运算
+ <<, >> 按位左移、右移
+ &, ^, | 按位与、异或、或
+ &&, || 逻辑与、或
+ <, >, ==, !=, <=, >= 比较运算
+ =, +=, -=, *=, /=, <<=, >>=, &=, ^=, |= 赋值运算
+
+Shell中不能直接进行算术运算, 如x=1; $x=$x+1会报错: command not found: 1=1+1
+执行算术运算时, 要用 $((operation)) 语法, 算术运算符两边可以有空格
+例如, x=$((3 + 5));$(($x + 1)); $((x=2 ** 10))
+不加 $ 的 ((operation)) 是一条独立的语句, 不能被其他表达式使用:
+如: ((x=x+1+2)); $x是可以的, ((x=x+1+2))则会报错
+let 命令也可以执行算术运算, 而不需要使用 $((operation)) 语法:
+例如, x=1;let x=x+3;$x
+expr 是另一个能执行算术运算的外部程序:
+expr 4 \* 5; x=$(expr 3 + 5); $x
+最佳实践: $((...))用于执行算术运算并将结果赋值给变量, ((...)) 用于 if 语句或循环中
+eval 命令将所有参数连接成一个单独的命令, 然后在当前 shell 环境中执行该命令
+例如, cmd=ls;arg=-La;eval $cmd $arg
+
+| 输入格式                           | 说明                                     |
+| ---------------------------------- | ---------------------------------------- |
+| read                               | 从标准输入读取一行,赋值给内置变量 REPLY  |
+| read var                           | 从标准输入读取一行,赋值给变量 var        |
+| read -a arr                        | 从标准输入读取一行,赋值给数组 arr        |
+| read -p please input your name     | 打印一个提示符                           |
+| read -t                            | 设置一个超时时间                         |
+| 输出格式                           | 说明                                     |
+| echo -n string                     | 输出 string 后,不会输出换行符            |
+| echo -e "\t"                       | 将\t解析为制表符                         |
+
+引号的区别
+不被引号包裹的字符串,会进行单词分割和通配符扩展。例如, *.c会被扩展为a.c b.c c.c
+单引号:忽略所有特殊字符,原样输出
+双引号:忽略大部分特殊字符,但不忽略以下特殊字符:
+   $: 用于引用变量
+   : 用于命令替换
+  \: 用于转义字符, 如 echo "The balance for user $USER is: $5.00"
+反引号: 用于命令替换,等同于$(cmd).
+  $(cmd)示例: $(basename $(pwd))
+  不同于$(cd /tmp; ls), (cd /tmp; ls)是在子shell中切换目录并执行命令
+
+建议始终将变量用双引号包裹起来.否则,
+foo bar将被视为两个独立的参数 foo 和 bar;
+如果参数包含通配符 *,Shell 会将其扩展为匹配的文件名。
+
+
+字符串操作:
+ \t 字符下标的取值从0到${#str} - 1
+ \t pattern,old中可以使用通配符
+| 操作             | 说明                                      |
+| -----------------| ------------------------------------------|
+| ${#str}         | 返回字符串的长度                           |
+| ${str:m}        | 返回从第m个字符到最后的子串(m的值从开始)   |
+| ${str:m:len}    | 返回从第m个字符开始,长度为len的子串        |
+| ${str#pattern}  | 删除字符串开头与pattern匹配的最小部分      |
+| ${str##pattern} | 删除字符串开头与pattern匹配的最大部分      |
+| ${str%pattern}  | 删除str结尾与pattern匹配的最小部分         |
+| ${str%%pattern} | 删除str结尾与pattern匹配的最大部分         |
+| ${str/old/new}  | 用new替换字符串中第一次出现的old           |
+| ${str//old/new} | 用new替换字符串中的所有old                 |
+
+
+括号的区别
+| 带括号的表达式 | 说明                                     |
+| -------------- | --------------------------------------   |
+| ${...}         | 引用变量                                   |
+| $(cmd)         | 命令替换,将 cmd 命令的输出结果替换到该位置|
+| $[...]         | 执行算术运算, 结果可以赋值给另一个变量    |
+| $((...))       | 同上                                      |
+| ((...))        | 算术运算                                  |
+| [...]          | 条件测试                                  |
+| [[...]]        | 现代的条件测试, 支持模式匹配、正则表达式等 |
+
+
+命令行参数 (通过命令行向脚本传递用空格分开的字符串参数)
+在脚本中通过位置引用这些参数,$1表示第一个参数,${10}表示第 10 个参数。
+| 位置参数 | 作用                                                         |
+| -------- | ------------------------------------------------------------ |
+| $0     | 脚本文件名                                                   |
+| $#     | 传递给脚本的参数总数,不包括$0                             |
+| $$     | 脚本进程号                                                   |
+| $!     | 最后一个后台进程的进程号                                     |
+| $?     | 上一条脚本或命令的退出码,值是0到255之间的整数, 0表示成功退出,否则异常退出|
+| $*     | 传递给脚本的所有参数,作为单个字符串                         |
+| $@     | 传递给脚本的所有参数,作为单独的字符串(更常用,更安全)     |
+
+
+创建数组: array1=(2023 apple banana orange)
+修改数组元素: arr[0]=2021
+访问数组元素: ${array[0]} ${array[@]}, arr[@] 比 arr[*] 更加健壮和可靠
+获取数组长度: ${#array[@]}
+遍历数组: for item in ${array[@]}; do   $item done
+用下标遍历数组: for index in ${!array[@]}; do   Index: $index, Value: ${array[$index]} done
+排序: arr=(3 1 4 2 5) sorted_arr=($(echo '${arr[@]}' | tr ' ' '\n' | sort))
+追加元素: array+=(grape apple)
+删除元素: unset array[2]
+注意, 与其它语言中的动态数组不同, 删除shell数组中的元素后, 会留下空洞。
+连接数组: combined=(${array1[@]} ${array2[@]})
+
+代码示例:
+# 初始化数组
+arr=(apple banana cherry date elderberry)
+
+echo "${arr[@]}" # apple banana cherry date elderberry
+
+unset 'arr[2]' # 删除 cherry
+
+echo "${arr[@]}" # apple banana date elderberry
+
+echo "数组长度: ${#arr[@]}" # 数组长度: 4
+
+# 遍历并打印数组索引和值
+for i in "${!arr[@]}"; do
+  echo "索引 $i: ${arr[$i]}"
+done
+# 索引 0: apple
+# 索引 1: banana
+# 索引 3: date
+# 索引 4: elderberry
+
+
+定义关联数组: declare -A person
+赋值: person=([name]=John Doe [age]=30 [city]=New York)
+访问: ${person[name]}
+修改: person[age]=35
+遍历: for key in ${!person[@]}; do $key: ${person[$key]} done
+
+
+评估一个条件表达式是否为真:
+[[ condition ]] 或 test condition
+条件表达式的两侧必须有空格, 否则Shell 会将其解释为一个命令或函数名
+如果条件测试为真, 返回退出码0, 否则返回1
+内置命令true返回0, false返回1
+使用exit关键字来指定脚本的退出码。如果脚本省略了exit 语句, 则退出码为上次执行命令的退出码
+
+
+字符串测试,
+| 字符串测试(运算符两侧必须有空格)| 说明                     |
+| --------------------------| ------------------------ |
+| [[ -z $str ]]             | 字符串长度为0,返回真     |
+| [[ -n $str ]]             | 字符串不为空,返回真      |
+| [[ $str1 == $str2 ]]      | 两字符串相等             |
+| [[ $str1 != $str2 ]]      | 两字符串不等             |
+
+整数测试
+((int1 > int2))  ((x == 1))
+下面是另一种写法, 更繁琐
+| --------------------- | ------------------------ |
+| [[ $int1 -eq $int2 ]] | int1等于int2             |
+| [[ $int1 -ne $int2 ]] | int1不等于int2           |
+| [[ $int1 -gt $int2 ]] | int1大于int2             |
+| [[ $int1 -lt $int2 ]] | int1小于int2             |
+| [[ $int1 -ge $int2 ]] | int1大于等于int2         |
+| [[ $int1 -le $int2 ]] | int1小于等于int2         |
+
+
+逻辑测试
+[[ $exp1 && $exp2 ]]  [[ $exp1 || $exp2 ]] [[ ! $exp ]]
+下面是另一种写法
+[[ exp1 -a exp2 ]] [[ exp1 -o exp2 ]] [[ !exp ]]
+
+
+| 文件测试      | 满足下列条件,则返回真   (man test)
+| 文件测试     | 说明                                  |
+| ------------ | ------------------------------------- |
+| -f filename  | 普通文件存在                          |
+| -d filename  | 目录文件存在                          |
+| -e filename  | 文件或目录存在                        |
+| -L filename  | 链接文件存在                          |
+| -s filename  | 文件非空, s是size的缩写               |
+| -r filename  | 文件或目录可读                        |
+| -w filename  | 文件或目录可写                        |
+| -x filename  | 文件或目录可执行                      |
+
+trap命令用于为信号(signal)注册一个命令(command)
+当 shell 脚本接收到指定的信号时, 将执行注册的命令
+trap pid $$ received sigint or sigquit!; exit 0 2 3
+cleanup() {...} trap cleanup EXIT
+常见的信号包括: 1(HUP) 2(INT) 3(QUIT) 6(ABRT) 14(ALRM) 15(TERM)
+
+
+if语句用于根据条件执行不同的代码块。其基本格式如下:
+if [ condition ]; then
+    # 在条件满足时执行的代码块
+else
+    # 在条件不满足时执行的代码块
+fi
+condition可以为多条命令, 以最后一个命令的退出状态为条件值
+代码块可以为:表示的空命令
+例如:
+if ((x == 10)); then
+    x is 10
+else
+    x is not 10
+fi
+
+
+case语句用于根据不同的模式匹配执行不同的代码块。其基本格式如下:
+case $variable in
+    pattern1)
+        # 匹配模式1时执行的代码块
+        ;;
+    pattern2)
+        # 匹配模式2时执行的代码块
+        ;;
+    *)
+        # 默认情况下执行的代码块
+        ;;
+esac # esac是case倒着写
+例如:
+case $fruit in
+    apple)
+        \Its an apple\
+        ;;
+    banana|orange)
+        \Its a banana or an orange\
+        ;;
+    *)
+        \Its something else\
+        ;;
+esac
+
+
+for语句用于循环执行一系列命令。其基本格式如下:
+for variable in list
+do
+    # 在每个list中的元素上执行的命令
+done
+例如:
+for fruit in apple banana orange
+do
+    I like $fruit
+done
+for语句还可以使用 C 风格的循环, 其格式如下:
+for ((exp1;exp2;exp3))
+do
+    # 在每次迭代中执行的命令
+done
+例如打印三角形:
+for ((i=0;i<9;++i))
+do
+    for ((j=0;j<$((9 - i - 1));++j))
+    do
+        -n
+    done
+    for ((j=0;j<$((2 * i + 1));++j))
+    do
+        -n *
+    done
+    -ne \\n
+done
+
+
+while语句用于根据条件循环执行一系列命令。其基本格式如下:
+while condition
+do
+    # 在条件满足时执行的命令
+done
+例如:
+while [[ $1 !=  ]]
+do
+    $1
+    shift
+done
+
+
+until语句与while语句类似, 不同之处在于它在条件为假时执行循环。其基本格式如下:
+until condition
+do
+    # 在条件不满足时执行的命令
+done
+例如:
+count=0
+until ((count == 3))
+do
+    $count
+    ((count++))
+done
+
+
+break和continue用于控制循环的执行流程。
+break 用于跳出当前循环, 终止循环的执行。
+continue 用于跳过当前循环中的剩余命令, 直接进行下一次循环迭代。
+可以在 break 或 continue 后面加上一个数字 n, 表示跳出或跳过第 n 层循环。
+
+
+select 是一个内置命令,用于创建交互式菜单,让用户从列表中选择一个或多个选项
+用法如下:
+PS3=请选择一个选项:   # 设置提示符
+options=(Option 1 Option 2 Option 3 Quit)
+select opt in ${options[@]}
+do
+    case $opt in
+        Option 1)
+            你选择了 Option 1
+            ;;
+        Option 2)
+            你选择了 Option 2
+            ;;
+        Option 3)
+            你选择了 Option 3
+            ;;
+        Quit)
+            break
+            ;;
+        *)
+            无效选项
+            ;;
+    esac
+done
+
+
+函数的基本语法:
+函数中不带local关键字的变量是全局变量,它们可以在函数外部引用
+使用return关键字为函数指定退出码, 否则退出码是上次执行命令的退出码
+[function] function_name()
+{
+    command1
+    command2
+    ...
+}
+例如:
+func()
+{
+    函数参数个数为:$#
+    第一个参数为$1
+    第二个参数为$2
+}
+调用函数: func hello world
+
+
+某脚本调用其它脚本中的函数时, 需要先将被调用脚本加载到当前环境中:
+. ./functions.sh 或 source ./functions.sh
+
+
+IO重定向:
+ 输出重定向
+   command > file: 将命令的标准输出重定向到文件中,覆盖文件原有内容。
+   command >> file: 将命令的标准输出重定向到文件中,追加到文件末尾。
+ 输入重定向
+   command < file: 将文件的内容作为命令的标准输入。
+ 错误重定向
+   command 2> file: 将命令的标准错误输出重定向到文件中,覆盖文件原有内容。
+   command 2>> file: 将命令的标准错误输出重定向到文件中,追加到文件末尾。
+ 重定向到文件描述符
+   command <&3: 将文件描述符 3 作为命令的标准输入。
+   command >&4: 将文件描述符 4 作为命令的标准输出。
+   < 和 &3 之间是不能加空格的。这是因为 & 符号用于指示后面的数字是一个文件描述符, 而空格会打断这种语法结构。
+ 合并输出和错误
+   command > file 2>&1: 将命令的标准输出和标准错误输出都重定向到同一个文件中。
+   command &> file: 这是上一条命令的简写形式。
+ 丢弃输出或错误
+   command > /dev/null: 将命令的标准输出丢弃。
+   command 2> /dev/null: 将命令的标准错误输出丢弃。
+   command &> /dev/null: 将命令的标准输出和标准错误输出都丢弃。
+ Here 文档
+   - command << TOKEN: 将后续行作为命令的标准输入,直到遇到 TOKEN 为止。
+   - command << 'TOKEN': 所有字符都会被当作纯文本,不会进行任何解释和替换。
+ tee命令
+     tee表示管道系统中T形连接件
+     从标准输入读取数据, 输出到标准输出, 同时也将数据写入到一个或多个文件中。
+
+后台作业:
+&
+将命令放入后台运行。例如, some_command & 将启动 some_command 并立即返回提示符。
+
+jobs
+列出当前会话中的所有作业及其状态。作业编号前面带有百分号(%) 。
+
+fg
+将后台作业带到前台继续运行。使用 fg %n 可以将作业编号为n的作业带到前台。
+
+bg
+使一个暂停的作业在后台继续运行。使用 bg %n 可以将作业编号为n的作业继续在后台运行。
+
+Ctrl+Z
+暂停当前正在运行的前台作业, 并将其放入后台(作为停止状态) 。
+
+kill
+发送信号给作业。使用 kill %n 可以发送信号给作业编号为n的作业, 默认信号为TERM, 终止作业。
+也可以发送其他信号, 如 kill -9 %n 强制终止作业。
+
+disown
+从当前会话的作业列表中移除作业, 使得作业在当前shell退出后继续运行。
+使用 disown %n 可以移除作业编号为n的作业。
+
+
+调试:
+set -x (xtrace) 在执行每个命令之前,打印出该命令及其参数、扩展后的通配符
+set -v (verbose) 在执行每个命令之前,打印出该命令行
+set +x 关闭set -x
+set -euo pipefail, 即set -e; set -u; set -o pipefail
+它们的全称是exit, unset, pipfail:
+  任何命令的返回码不是 0(成功),则立即退出;
+  使用未定义的变量,则报错并退出;
+  管道中任何一个命令返回非零退出码,则整个管道命令将返回非零退出码
+
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function systemctl_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+systemctl status dhcpcd         # 查看服务状态
+
+systemctl enable dhcpcd         # 设置开机启动服务
+systemctl enable --now dhcpcd   # 设置服务为开机启动并立即启动
+systemctl disable dhcpcd        # 取消开机自动启动
+
+systemctl start dhcpcd          # 启动服务
+systemctl stop dhcpcd           # 停止服务
+
+systemctl restart dhcpcd        # 重启服务
+systemctl reload dhcpcd         # 针对服务的运行时配置, 直接生效且不中断服务
+systemctl daemon-reload dhcpcd  # 针对systemd管理器的配置, 需手动重启服务以应用变更
+EOF
+
+  echo -e '\033[0m'
+}
+
+function top_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << EOF
+top (table of process)
+------前五行显示系统概要信息: ------
+
+第1行: 当前时间, 系统运行时间, 登录用户数; 过去 1、5、15 分钟的系统平均负载(即运行和就绪的进程个数)。
+    冷知识: tload命令可以在终端中画出系统负载的变化图
+
+第2行: 进程总数, 其中包括运行中、睡眠中、已停止和僵尸进程数。
+
+第3行: CPU时间使用情况。
+us: user, 运行用户进程的时间, 不包括nice时间, us + ni 才是执行用户进程的总时间。
+sy: system, 运行内核进程的时间。
+ni: nice, 运行nice用户进程(即进程的nice值被调整为1-19的低优先级用户进程) 的时间。
+id: idle, 空闲时间, 不包括等待I/O的时间。
+wa: IO-wait, 等待I/O完成的CPU时间。
+hi: hardware interrupts, 处理硬件中断的CPU时间(如网卡、磁盘控制器发送的中断)。
+si: software interrupts, 处理软件中断的CPU时间 (由内核或应用程序发送的中断)。
+st: time stolen from this vm by the hypervisor, 如果当前机器是虚拟机, 被虚拟机管理器占用的时间。
+
+第4行: 内存使用情况, 包括总计、空闲、已用和缓冲/缓存内存。
+第5行: 交换内存使用情况, 包括总计、空闲、已用和可用内存。
+
+------在概要信息下方, top 显示了一个进程列表, 包含以下字段: ------
+
+  PID - 进程ID
+  USER - 进程所有者
+  PR - 进程优先级,越小越优先被执行
+  NI - 进程的nice值,范围-20~19,越大优先级越低, 默认值是0
+  VIRT - 虚拟内存大小, 包括进程的所有代码、数据、共享库; 包括被换出和已映射但没使用的页
+  RES - 常驻内存大小, 即进程使用的非换出的物理内存
+  SHR - 可以被其它进程共享的内存大小, 可能是常驻内存, 也可能不是
+  S - 进程状态(D=不可中断的睡眠,R=运行,S=睡眠,T=跟踪/停止,Z=僵尸进程,I=空闲)
+  %CPU - 进程使用的 CPU 百分比
+  %MEM - 进程使用的物理内存百分比
+  TIME+ - 进程自启动以来使用的总 CPU 时间
+  COMMAND: 启动进程的命令名称或命令行(名称 + 选项)
+
+******交互操作:******
+
+  空格/回车 - 刷新
+  1 - 显示每个CPU核心的使用率
+  E - 切换内存信息的单位
+  l/t/m - 切换uptame/cpu/memory的显示方式
+
+  g 3 - 显示进程的详细内存信息。nMaj字段表示major fault(需要硬盘IO的缺页异常) 次数; nDRT字段已废弃, 总为0
+  c - 显示命令的完整路径
+  i - 只显示空闲进程
+  V - 用树形图显示进程
+  P - 以CPU使用率排序
+  M - 以内存使用率排序
+  N - 以PID排序
+  T - 以TIME排序
+  k - 杀死进程
+  r - 修改进程的nice值
+  s - 改变刷新间隔
+  f - 添加或删除显示字段
+  o - 改变排序字段
+
+  h或? - 显示帮助信息
+  q - 退出top
+
+启动参数:
+  -p pid 观察指定进程
+
+EOF
+
+  echo -e '\033[0m'
+}
+
+function user_help
+{
+  cat << EOF
+$(echo -e '\033[38;2;255;255;0;1m')
+'su' 适合于临时切换用户权限, 你将获得目标用户的权限,但继续使用原始用户的HOME目录、PATH设置等。
+
+'su -' (是su --login root的简写) 适合于需要完全模拟用户登录会话的情况。
+- 或 -l 选项启动一个login shell, 这会加载此用户的 shell 环境, 并且工作目录会更改到这个用户的家目录。
+这通常用于切换到root用户,因为它提供了一个干净的环境,避免了权限和环境变量冲突的问题。
+
+/etc/sudoers文件定义了哪些用户可以使用sudo命令以及可以执行哪些命令,通常由系统管理员使用visudo命令进行编辑。
+sudo 命令允许一个普通用户以root用户的身份来执行命令, 使用 sudo 命令时,用户使用他自己的密码来认证, 而不是管理员密码。
+sudo 不会重新启动一个 shell,也不会加载另一个用户的 shell 运行环境。
+
+$(echo -e '\033[38;2;102;153;204;1m')
+who - 显示当前登录系统的所有用户信息
+who am i - 显示当前用户会话的信息(比whoami显示更多的信息)
+whoami - 打印当前有效用户的用户名
+
+id [选项] [用户] - 打印当前用户或指定用户的用户ID、主组ID、所有组的ID
+groups [用户] - 显示当前用户或指定用户所属的所有组
+
+$(echo -e '\033[38;2;255;102;0;1m')
+useradd [选项] 用户名 - 创建新用户
+   常用选项:
+     -m, --create-home     创建用户主目录
+     -G, --groups          指定用户所属的附加组
+     -s, --shell           指定用户的登录shell
+
+usermod [选项] 用户名 - 修改用户账户
+   常用选项:
+     -l, --login           修改用户名
+     -g, --gid             修改用户主组
+     -G, --groups          修改用户所属的附加组
+     -s, --shell           修改用户的登录shell
+
+userdel [选项] 用户名 - 删除用户账户
+     -r, --remove          删除用户主目录和邮件副本
+
+$(echo -e '\033[38;2;102;153;204;1m')
+groupadd [选项] 组名 - 创建新组
+    常用选项:
+      groupadd groupname - 创建一个新的用户组
+      groupadd -g GID groupname - 创建一个新的用户组并指定GID
+      groupadd -r groupname 创建一个新的系统组
+
+groupmod [选项] 组名 - 修改组
+    常用选项:
+      -n new_groupname old_groupname       更改组名
+      -g new_GID groupname       更改组的GID
+
+groupdel 组名 - 删除组
+
+newgrp groupname - 切换当前用户的活动组(用户必须是目标组的成员)
+
+$(echo -e '\033[38;2;255;102;0;1m')
+管理用户和用户组的配置文件为: /etc/passwd /etc/shadow /etc/group /etc/gshadow
+出于安全考虑,/etc/passwd文件中只保存了用户信息,包括用户名、密码占位符、UID、GID、注释、用户主目录、用户Shell等(man 5 passwd)
+真正的密码保存在/etc/shadow文件中(man 5 shadow)
+
+$(echo -e '\033[38;2;255;0;255;1m')
+passwd [选项] [用户] - 修改用户密码
+    常用选项:
+      -d, --delete           删除用户密码
+      -l, --lock           锁定用户密码,禁止用户登录
+      -u, --unlock         解锁用户密码,允许用户登录
+
+gpasswd - 修改组成员和密码
+    gpasswd -a user group - 向组中添加用户
+    gpasswd -d user group - 从组中删除用户
+    gpasswd -A user group 设置组管理员
+    gpasswd group - 创建或更新组密码
+    gpasswd -r group - 删除组密码
+
+chage [选项] 用户名 - 修改用户密码过期信息
+    常用选项:
+      -l, --list           列出用户的密码过期信息
+      -d, --lastday        设置最后一次密码更改日期
+      -E, --expiredate     设置账户过期日期
+
+chown命令用于更改文件或目录所有者。
+chown [选项] [所有者][:组] 文件/目录
+
+chgrp命令用于更改文件或目录所属组。
+chgrp [选项列表]... 组 文件...
+EOF
+
+  echo -e '\033[0m'
+}
+
+function vscode_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+alt + z toggle wrap line
+ctrl + shift + l 重命名函数或变量
+ctrl + d 多次按, 增量选择要重命名的函数或变量
+ctrl + / 行注释
+shift + alt + f 格式化
+alt + 上下箭头 上下移动行
+ctrl + p 打开最近的文件
+ctrl + l 选择整行
+ctrl + g 跳转到特定行
+ctrl + k w 关闭所有选项卡
+
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function signal_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+执行 man 7 signal 查看更多
+
+SIGINT,SIGQUIT,SIGTERM,SIGKILL:
+SIGINT 和 SIGQUIT 是来自终端的终止进程请求,用户在终端使用快捷键生成的。
+SIGTERM 和 SIGKILL 是通用的终止进程请求,由另一个程序以某种方式生成(例如通过 kill 命令)。
+SIGINT和SIGTERM 是一个请求信号,通常用于优雅地终止进程。它允许进程在终止之前进行清理工作,比如保存状态、释放资源等。
+SIGQUIT 通常用于调试。它的默认操作是 Core,即终止进程后,通过 Core Dump 将当前进程的运行状态保存在文件里面。
+对于 SIGKILL 和 SIGSTOP 这个两个信号,进程是无法捕捉和忽略,它们用于在任何时候中断或结束某一进程。
+docker 在停止容器的时候,先给容器里的 1 号进程发送 SIGTERM,如果不起作用,那么等待 30 秒后会会发送 SIGKILL,保证容器最终会被停止。
+
+SIGTSTP和SIGSTOP:
+SIGTSTP 由用户在键盘上键入快捷键 Ctrl-z 生成,SIGSTOP 由另一个程序以某种方式生成, 例如kill -SIGSTOP pid。 SIGSTOP 是特权信息,不能被捕获或忽略。 被暂停的进程通过信号 SIGCONT 恢复。
+
+SIGTTOU 和 SIGTTIN:  fffff
+如果一个后台作业中的进程试图进行终端读写操作,终端会向整个作业发送 SIGTTOU 或 SIGTTIN 信号,默认的行为是暂停进程。
+
+SIGSEGV:
+SIGSEGV中的“V”代表“violation”,完整的意思是“segmentation violation”。它的产生是硬件和操作系统协同工作的结果,硬件负责检测违规,操作系统负责处理后续的信号。
+
+EOF
+
+  echo -e '\033[0m'
+
+}
+
+function simd_help
+{
+  echo -e '\033[38;2;102;153;204;1m'
+
+  cat << 'EOF'
+“发射”指的是将指令从指令队列送入执行单元的过程。 超标量处理器(Superscalar)能够在同一时钟周期内发射多条指令。它通过增加执行单元的数量和复杂的调度机制来实现更高的指令吞吐量。
+
+普通指令使用标量寄存器,每次只能处理一个数据元素。 SIMD指令使用向量寄存器,可以在同一指令周期内处理多个数据元素,这使得SIMD在处理大量相同类型数据时效率更高。 一个32位的标量寄存器可以存储一个32位的整数(如 int),而一个64位的标量寄存器可以存储一个64位的浮点数(如 double) 一个128位的向量寄存器可以存储4个32位的整数(如 int),或者8个16位的整数,或者2个64位的浮点数(如 double)。在更宽的向量寄存器(如256位或512位)中,可以存储更多的数据元素。
+
+超发射关注的是指令级并行性,旨在通过同时发射多条指令来提高处理器的执行效率。 SIMD关注的是数据级并行性,旨在通过单条指令同时处理多个数据元素来加速计算。
+
+EOF
+
+  echo -e '\033[0m'
+}
+
+if [[ ${BASH_SOURCE[0]} == "${0}" ]]; then
+  echo -e "\nAvailable help topics:"
+
+  mapfile -t help_funcs < <(declare -F | grep '_help$' | cut -d' ' -f3 | sort)
+
+  for i in "${!help_funcs[@]}"; do
+    echo "$((i + 1)). ${help_funcs[i]/_help/}"
+  done
+
+  echo -e "\nEnter topic number (1-${#help_funcs[@]}) or q to quit:"
+  read -r choice
+
+  if [[ $choice == "q" ]]; then
+    return
+  elif [[ $choice =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#help_funcs[@]} ]; then
+    clear
+    ${help_funcs[$((choice - 1))]}
+    echo -e "\nPress Enter to return to menu"
+    read -r
+    clear
+  else
+    echo "Invalid selection"
+  fi
+fi

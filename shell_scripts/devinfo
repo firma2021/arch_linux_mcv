@@ -1,0 +1,235 @@
+#!/usr/bin/env bash
+
+function echo_colorful_version
+{
+  local violet="\033[38;2;136;78;160;1m"
+  local blue="\033[38;2;102;153;204;1m"
+  echo -e "${violet}$1: ${blue}$2"
+}
+
+readonly none='✘>﹏<✘'
+
+function get_git_info
+{
+  if git_version=$(git --version 2> /dev/null); then
+    git_version=$(cut -d' ' -f3 <<< "$git_version")
+    echo_colorful_version 'git' "$git_version"
+  else
+    echo_colorful_version 'git' "$none"
+  fi
+
+  echo ""
+}
+
+function get_c_info
+{
+
+  if gcc_version=$(gcc --version 2> /dev/null); then
+    gcc_version=$(echo "$gcc_version" | head -n 1 | cut -d' ' -f 3-4)
+    echo_colorful_version 'gcc' "$gcc_version"
+  else
+    echo_colorful_version 'gcc' "$none"
+  fi
+
+  if clang_version=$(clang --version 2> /dev/null); then
+    clang_version=$(echo "$clang_version" | paste --serial -d ' ')
+    echo_colorful_version 'clang' "$clang_version"
+  else
+    echo_colorful_version 'clang' "$none"
+  fi
+
+  echo "----------------------------------------------------------------"
+
+  if libcpp_version=$(pacman -Q libc++ 2> /dev/null); then
+    echo_colorful_version 'libc++' "$libcpp_version"
+  else
+    echo_colorful_version 'libc++' "$none"
+  fi
+
+  echo "----------------------------------------------------------------"
+
+  if clangd_version=$(clangd --version 2> /dev/null); then
+    clangd_version=$(echo "$clangd_version" | paste --serial -d ' ')
+    echo_colorful_version 'clangd' "$clangd_version"
+  else
+    echo_colorful_version 'clangd' "$none"
+  fi
+
+  if clang_format=$(clang-format --version 2> /dev/null); then
+    clang_format=$(echo "$clang_format" | paste --serial -d ' ')
+    echo_colorful_version 'clang-format' "$clang_format"
+  else
+    echo_colorful_version 'clang-format' "$none"
+  fi
+
+  if clang_tidy=$(clang-tidy --version 2> /dev/null); then
+    clang_tidy=$(echo "$clang_tidy" | tail -n 2 | paste --serial -d ' ')
+    echo_colorful_version 'clang-tidy' "$clang_tidy"
+  else
+    echo_colorful_version 'clang-tidy' "$none"
+  fi
+
+  echo "----------------------------------------------------------------"
+
+  if make_version=$(make --version 2> /dev/null); then
+    make_version=$(echo "$make_version" | head -n 2 | paste --serial -d ' ')
+    echo_colorful_version 'make' "$make_version"
+  else
+    echo_colorful_version 'make' "$none"
+  fi
+
+  if ninja_version=$(ninja --version 2> /dev/null); then
+    echo_colorful_version 'ninja' "$ninja_version"
+  else
+    echo_colorful_version 'ninja' "$none"
+  fi
+
+  if cmake_version=$(cmake --version 2> /dev/null); then
+    cmake_version=$(echo "$cmake_version" | head -n 1 | cut -d' ' -f3)
+    echo_colorful_version 'cmake' "$cmake_version"
+  else
+    echo_colorful_version 'cmake' "$none"
+  fi
+
+  echo "----------------------------------------------------------------"
+
+  if gdb_version=$(gdb --version 2> /dev/null); then
+    gdb_version=$(echo "$gdb_version" | head -n 2 | paste --serial -d ' ')
+    echo_colorful_version 'gdb' "$gdb_version"
+  else
+    echo_colorful_version 'gdb' "$none"
+  fi
+
+  if lldb_version=$(lldb --version 2> /dev/null); then
+    echo_colorful_version 'lldb' "$lldb_version"
+  else
+    echo_colorful_version 'lldb' "$none"
+  fi
+
+  echo ""
+}
+
+function get_python_info
+{
+  if python_version=$(python --version 2> /dev/null); then
+    python_version=$(echo "$python_version" | cut -d' ' -f2)
+    echo_colorful_version 'python' "$python_version"
+  else
+    echo_colorful_version 'python' "$none"
+  fi
+
+  local venv_info="$none"
+  if [[ $VIRTUAL_ENV =~ "venv$" ]]; then
+    venv_info=${VIRTUAL_ENV:h:t}
+  elif [ -n "$VIRTUAL_ENV" ]; then
+    venv_info="${VIRTUAL_ENV:t}"
+  fi
+  echo_colorful_version 'virtual env' "$venv_info"
+
+  if pip_version=$(pip --version 2> /dev/null); then
+    echo_colorful_version 'python-pip' "$pip_version"
+  else
+    echo_colorful_version 'python-pip' "$none"
+  fi
+
+  echo ""
+}
+
+function get_shell_info
+{
+  if shellcheck_version=$(shellcheck --version 2> /dev/null); then
+    shellcheck_version=$(echo "$shellcheck_version" | head -n 2 | paste --serial -d ' ')
+    echo_colorful_version 'shellcheck' "$shellcheck_version"
+  else
+    echo_colorful_version 'shellcheck' "$none"
+  fi
+
+  if shfmt_version=$(shfmt --version 2> /dev/null); then
+    echo_colorful_version 'shfmt' "$shfmt_version"
+  else
+    echo_colorful_version 'shfmt' "$none"
+  fi
+
+  echo ""
+}
+
+function get_lua_info
+{
+  if lua_version=$(lua -v 2> /dev/null); then
+    echo_colorful_version 'lua' "$lua_version"
+  else
+    echo_colorful_version 'lua' "$none"
+  fi
+
+  echo ""
+}
+
+function get_go_info
+{
+  if go_version=$(go version 2> /dev/null); then
+    go_version=$(cut -d' ' -f 3-4 <<< "$go_version")
+    go_version=${go_version/go/}
+    echo_colorful_version 'go' "$go_version"
+  else
+    echo_colorful_version 'go' "$none"
+  fi
+
+  echo ""
+}
+
+function get_java_info
+{
+  if java_version=$(java --version 2> /dev/null); then
+    java_version=$(paste --serial -d ' ' <<< "$java_version")
+    echo_colorful_version 'java' "$java_version"
+  else
+    echo_colorful_version 'java' "$none"
+  fi
+
+  echo ""
+}
+
+function get_rust_info
+{
+  if rust_version=$(rustc --version 2> /dev/null); then
+    echo_colorful_version 'rust' "$rust_version"
+  else
+    echo_colorful_version 'rust' "$none"
+  fi
+
+  echo ""
+}
+
+function get_nodejs_info
+{
+  if node_version=$(node --version 2> /dev/null); then
+    echo_colorful_version 'node.js' "$node_version"
+  else
+    echo_colorful_version 'node.js' "$none"
+  fi
+
+  if npm_version=$(npm --version 2> /dev/null); then
+    echo_colorful_version 'npm' "$npm_version"
+  else
+    echo_colorful_version 'npm' "$none"
+  fi
+
+  echo ""
+}
+
+if nvidia-smi 2> /dev/null; then
+    true
+else
+    echo "NVIDIA graphics driver / System Management Interface is not installed."
+fi
+
+get_git_info
+get_c_info
+get_python_info
+get_lua_info
+get_shell_info
+get_go_info
+get_java_info
+get_rust_info
+get_nodejs_info
+echo -e '\033[0m'

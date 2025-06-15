@@ -1,0 +1,70 @@
+# clang-tidy -checks="-*,misc-unused-using-decls" path/to/simple.cc --
+# -- means simple.cc is a single file, not in compilation database
+
+# .clang-tidy files are in the YAML format. see https://yaml.org/
+
+# https://clang.llvm.org/extra/clang-tidy/
+# https://clang.llvm.org/extra/clang-tidy/checks/list.html
+# https://clang.llvm.org/extra/clang-tidy/checks/readability/identifier-naming.html
+
+# see clang-tidy --dump-config
+
+# check options:
+# cert: Computer Emergency Response Team
+# hicpp: High Integrity C++ Programming Standard
+# MPI: Message Passing Interface
+
+# you should disable the following check options:
+# bugprone-exception-escape: This option may be expensive on large source files
+
+# The AnalyzeTemporaryDtors option has been deprecated. 
+# FormatStyle: Style for formatting code around applied fixes
+---
+Checks: >
+  boost-use-to-string,
+  bugprone-*,
+  cert-*,
+  clang-analyzer-*,
+  concurrency-*,
+  cppcoreguidelines-*,
+  google-*,
+  hicpp-*,
+  misc-*,
+  modernize-*,
+  mpi-*,
+  openmp-use-default-none,
+  performance-*,
+  portability-*,
+  readability-*,
+  -bugprone-easily-swappable-parameters,
+  -bugprone-exception-escape,
+  -cert-dcl51-cpp,
+  -cert-dcl37-c,
+  -cppcoreguidelines-avoid-magic-numbers,
+  -cppcoreguidelines-non-private-member-variables-in-classes,
+  -google-build-using-namespace,
+  -google-readability-todo,
+  -google-objc-function-naming,
+  -misc-non-private-member-variables-in-classes,
+  -misc-unused-alias-decls,
+  -misc-unused-parameters,
+  -misc-unused-using-decls,
+  -modernize-use-trailing-return-type,
+  -portability-restrict-system-includes,
+  -readability-braces-around-statements,
+  -readability-function-cognitive-complexity,
+  -readability-function-size,
+  -readability-identifier-length,
+  -readability-identifier-naming,
+  -readability-magic-numbers,
+  -readability-named-parameter,
+  -readability-redundant-access-specifiers,
+  -readability-redundant-member-init,
+  -readability-simplify-boolean-expr,
+  -readability-suspicious-call-argument,
+  -readability-uppercase-literal-suffix
+WarningsAsErrors: ''
+# HeaderFilterRegex: '\(src|app\)\/*.\(h|hpp\)'
+FormatStyle: file
+SystemHeaders: false
+...
