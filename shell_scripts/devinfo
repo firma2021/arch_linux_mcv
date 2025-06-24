@@ -218,10 +218,43 @@ function get_nodejs_info
 }
 
 if nvidia-smi 2> /dev/null; then
-    true
+  true
 else
-    echo "NVIDIA graphics driver / System Management Interface is not installed."
+  echo "NVIDIA graphics driver / System Management Interface is not installed."
 fi
+
+function get_core_dump_info
+{
+  # 获取 ulimit -c 的值
+  if core_limit=$(ulimit -c 2> /dev/null); then
+    if [ "$core_limit" = "0" ]; then
+      echo_colorful_version 'ulimit -c' "0 (core dump disabled)"
+    elif [ "$core_limit" = "unlimited" ]; then
+      echo_colorful_version 'ulimit -c' "unlimited"
+    else
+      echo_colorful_version 'ulimit -c' "${core_limit} blocks"
+    fi
+  else
+    echo_colorful_version 'ulimit -c' "$none"
+  fi
+
+  # 获取 core_pattern
+  if [ -r /proc/sys/kernel/core_pattern ]; then
+    core_pattern=$(cat /proc/sys/kernel/core_pattern 2> /dev/null)
+    if [[ $core_pattern == *"systemd-coredump"* ]]; then
+      echo_colorful_version 'core dump handler' "systemd-coredump"
+      echo_colorful_version 'core dump location' "/var/lib/systemd/coredump/"
+      echo_colorful_version 'view core dumps' "use 'coredumpctl list' and 'coredumpctl info <PID>'"
+    else
+      echo_colorful_version 'core dump handler' "traditional (file-based)"
+      echo_colorful_version 'core dump pattern' "$core_pattern"
+    fi
+  else
+    echo_colorful_version 'core dump handler' "$none"
+  fi
+
+  echo ""
+}
 
 get_git_info
 get_c_info
@@ -232,4 +265,5 @@ get_go_info
 get_java_info
 get_rust_info
 get_nodejs_info
+get_core_dump_info
 echo -e '\033[0m'
